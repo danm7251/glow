@@ -7,5 +7,5 @@ fn main() -> eframeResult {
         ..Default::default()
     };
 
-    eframe_run_native("glow", native_options, Box::new(|_cc| {Ok(Box::new(app::GlowApp))}))
+    eframe_run_native("glow", native_options, Box::new(|_cc| {Ok(Box::new(app::GlowApp::default()))}))
 }
