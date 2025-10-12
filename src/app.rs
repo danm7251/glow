@@ -1,14 +1,16 @@
-use eframe::egui::Sense;
-use eframe::{App as eframeApp, egui::Context as eguiContext, Frame as eframeFrame, egui::CentralPanel};
+use eframe::{App as eframeApp, egui::{Context as eguiContext, Sense, Label}, Frame as eframeFrame, egui::CentralPanel};
 use std::time::Duration;
 use std::path::PathBuf;
 use std::fs::read_dir;
 
 /*
 Todo list:
-    - Implement scrolling for large song lists
-    - Make the song labels prettier, includes investigating title and artist fields
-    - Allow metadata editing or at least file renaming
+    Functionality:
+        - Implement scrolling for large song lists
+        - Make the song labels prettier, includes investigating title and artist fields
+        - Allow metadata editing or at least file renaming
+    Quality:
+        - Check for any variables that should be borrowed
 */
 
 pub struct GlowApp {
@@ -45,8 +47,20 @@ impl GlowApp {
                 for song in &self.songs {
                     // Extract UI information from song
                     let song_title = song.file_name().expect("Failed to get file name of song"); 
+                    // Using the add method allows the use of sense to make the label interactive
                     // Some depth to display() to explore
-                    ui.label(song_title.display().to_string());
+                    let label = ui.add(Label::new(song_title.display().to_string()).sense(Sense::click()));
+
+                    if label.clicked() {
+                        println!("Play!")
+                    }
+
+                    // Right click menu for each song
+                    label.context_menu(|ui| {
+                        if ui.button("Edit").clicked() {
+                            println!("Edit!");
+                        }
+                    });
                 }
             }
         });
