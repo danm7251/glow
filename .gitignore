@@ -1,5 +1,6 @@
 /target/
 songs/*
+!songs/.gitkeep
 **/*.rs.bk
 *.pdb
 .vscode/

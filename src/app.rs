@@ -3,6 +3,8 @@ use std::time::Duration;
 use std::path::PathBuf;
 use std::fs::read_dir;
 
+use crate::audio::AudioEngine;
+
 /*
 Todo list:
     Functionality:
@@ -15,12 +17,14 @@ Todo list:
 
 pub struct GlowApp {
     songs: Vec<PathBuf>,
+    audio_engine: AudioEngine,
 }
 
 impl Default for GlowApp {
     fn default() -> Self {
         Self {
             songs: load_songs("songs").unwrap_or_default(),
+            audio_engine: AudioEngine::new(),
             // Creates an empty vector if load_songs returns an error
             // Consider storing the result later to display the error in app
         }
@@ -52,7 +56,7 @@ impl GlowApp {
                     let label = ui.add(Label::new(song_title.display().to_string()).sense(Sense::click()));
 
                     if label.clicked() {
-                        println!("Play!")
+                        self.audio_engine.play_song(song);
                     }
 
                     // Right click menu for each song
