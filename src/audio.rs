@@ -20,12 +20,18 @@ impl AudioEngine {
         }
     }
 
-    pub fn play_song(&mut self, path: &PathBuf) {
-        let file = File::open(path).unwrap();
+    // Learn more about the Box type for error handling
+    // Returns Box error type as DecoderError and FileError are incompatible
+    pub fn play_song(&mut self, path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
 
-        let source = Decoder::try_from(file).unwrap();
+        // Opening and decoding songs each time could impact performance, try caching?
+
+        let file = File::open(path)?;
+        let source = Decoder::try_from(file)?;
 
         self.sink.stop();
         self.sink.append(source);
+
+        Ok(())
     }
 }

@@ -57,6 +57,7 @@ impl GlowApp {
 
                     if label.clicked() {
                         self.audio_engine.play_song(song);
+                        // Implement error handling here
                     }
 
                     // Right click menu for each song
