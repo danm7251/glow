@@ -56,7 +56,11 @@ impl GlowApp {
                     let label = ui.add(Label::new(song_title.display().to_string()).sense(Sense::click()));
 
                     if label.clicked() {
-                        self.audio_engine.play_song(song);
+                        let result = self.audio_engine.play_song(song);
+
+                        if false {
+                            ui.label("Failed to play song");
+                        }
                         // Implement error handling here
                     }
 
