@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::fs::File;
 
 // May need stream_handle later
-// Error handling needs an upgrade
+// When app is closed rodio prints to console about the outputstream being dropped
 pub struct AudioEngine {
     stream_handle: OutputStream,
     sink: Sink,
