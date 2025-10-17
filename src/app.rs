@@ -5,28 +5,20 @@ use std::fs::read_dir;
 
 use crate::audio::AudioEngine;
 
-/*
-Todo list:
-    Functionality:
-        - Implement scrolling for large song lists
-        - Make the song labels prettier, includes investigating title and artist fields
-        - Allow metadata editing or at least file renaming
-    Quality:
-        - Check for any variables that should be borrowed
-*/
-
 pub struct GlowApp {
     songs: Vec<PathBuf>,
     audio_engine: AudioEngine,
+    last_error: Option<String>, // Consider changing to a queue to solve multiple errors in one cycle. for now just panic?
 }
 
 impl Default for GlowApp {
     fn default() -> Self {
         Self {
             songs: load_songs("songs").unwrap_or_default(),
-            audio_engine: AudioEngine::new(),
             // Creates an empty vector if load_songs returns an error
             // Consider storing the result later to display the error in app
+            audio_engine: AudioEngine::new(),
+            last_error: None,
         }
     }
 }
@@ -56,12 +48,15 @@ impl GlowApp {
                     let label = ui.add(Label::new(song_title.display().to_string()).sense(Sense::click()));
 
                     if label.clicked() {
-                        let result = self.audio_engine.play_song(song);
-
-                        if false {
-                            ui.label("Failed to play song");
-                        }
-                        // Implement error handling here
+                        // The contents of the if statement only runs if there is an error
+                        if let Err(error) = self.audio_engine.play_song(song) {
+                            // If last_error is not free code panics
+                            if self.last_error == None {
+                                self.last_error = Some(format!("Playback failed: {}", error));
+                            } else {
+                                panic!("Attempted to assign to last_error but it already contained an error...\nNew error: {:?}", error);
+                            }
+                        };
                     }
 
                     // Right click menu for each song
@@ -73,6 +68,13 @@ impl GlowApp {
                 }
             }
         });
+
+        // If an error exists this prints it and then removes it
+        // !!!Change this to a pop up window
+        if let Some(error) = &self.last_error {
+            println!("Error: {}", error);
+            self.last_error = None;
+        }
 
         ctx.request_repaint_after(Duration::from_millis(100));
     }
