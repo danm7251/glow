@@ -1,6 +1,9 @@
+use rodio::decoder::DecoderError;
 use rodio::{Decoder, OutputStream, OutputStreamBuilder, Sink};
 use std::path::PathBuf;
 use std::fs::File;
+
+const TEST: bool = true;
 
 // May need stream_handle later
 // When app is closed rodio prints to console about the outputstream being dropped
@@ -32,6 +35,10 @@ impl AudioEngine {
         self.sink.stop();
         self.sink.append(source);
 
-        Ok(())
+        if TEST {
+            Err(Box::new(DecoderError::UnrecognizedFormat))
+        } else {
+            Ok(())
+        }
     }
 }

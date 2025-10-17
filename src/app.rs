@@ -1,4 +1,4 @@
-use eframe::{App as eframeApp, egui::{Context as eguiContext, Sense, Label}, Frame as eframeFrame, egui::CentralPanel};
+use eframe::{App as eframeApp, egui::{Context as eguiContext, CentralPanel, Sense, Label, Window}, Frame as eframeFrame};
 use std::time::Duration;
 use std::path::PathBuf;
 use std::fs::read_dir;
@@ -71,9 +71,17 @@ impl GlowApp {
 
         // If an error exists this prints it and then removes it
         // !!!Change this to a pop up window
+        // Did this while drunk absolutely check this!!!!
         if let Some(error) = &self.last_error {
-            println!("Error: {}", error);
-            self.last_error = None;
+            let mut open = true;
+
+            Window::new("Error").open(&mut open).show(ctx, |ui| {
+                ui.label(error);
+            });
+
+            if !open {
+                self.last_error = None;
+            }
         }
 
         ctx.request_repaint_after(Duration::from_millis(100));
