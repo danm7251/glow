@@ -1,4 +1,5 @@
-use eframe::{App as eframeApp, egui::{Context as eguiContext, CentralPanel, Sense, Label, Window}, Frame as eframeFrame};
+use eframe::{App as eframeApp, egui::{Context as eguiContext, CentralPanel, Sense, Label}, Frame as eframeFrame};
+use native_dialog::{DialogBuilder, MessageLevel};
 use std::time::Duration;
 use std::path::PathBuf;
 use std::fs::read_dir;
@@ -8,17 +9,24 @@ use crate::audio::AudioEngine;
 pub struct GlowApp {
     songs: Vec<PathBuf>,
     audio_engine: AudioEngine,
-    last_error: Option<String>, // Consider changing to a queue to solve multiple errors in one cycle. for now just panic?
+    error_queue: Vec<String>, //LIFO, FIFO?
 }
 
 impl Default for GlowApp {
     fn default() -> Self {
+        let mut error_queue = Vec::new();
+        let songs = match load_songs("songs") {
+            Ok(list) => list,
+            Err(error) => {
+                error_queue.push(format!("Failed to load songs: {}", error));
+                Vec::new()
+            }
+        };
+
         Self {
-            songs: load_songs("songs").unwrap_or_default(),
-            // Creates an empty vector if load_songs returns an error
-            // Consider storing the result later to display the error in app
+            songs,
             audio_engine: AudioEngine::new(),
-            last_error: None,
+            error_queue,
         }
     }
 }
@@ -42,7 +50,8 @@ impl GlowApp {
             } else {
                 for song in &self.songs {
                     // Extract UI information from song
-                    let song_title = song.file_name().expect("Failed to get file name of song"); 
+                    // Add error handling
+                    let song_title = song.file_name().expect("Failed to get file name of song");
                     // Using the add method allows the use of sense to make the label interactive
                     // Some depth to display() to explore
                     let label = ui.add(Label::new(song_title.display().to_string()).sense(Sense::click()));
@@ -50,12 +59,7 @@ impl GlowApp {
                     if label.clicked() {
                         // The contents of the if statement only runs if there is an error
                         if let Err(error) = self.audio_engine.play_song(song) {
-                            // If last_error is not free code panics
-                            if self.last_error == None {
-                                self.last_error = Some(format!("Playback failed: {}", error));
-                            } else {
-                                panic!("Attempted to assign to last_error but it already contained an error...\nNew error: {:?}", error);
-                            }
+                            self.error_queue.push(format!("Playback failed: {}", error));
                         };
                     }
 
@@ -69,19 +73,17 @@ impl GlowApp {
             }
         });
 
-        // If an error exists this prints it and then removes it
-        // !!!Change this to a pop up window
-        // Did this while drunk absolutely check this!!!!
-        if let Some(error) = &self.last_error {
-            let mut open = true;
-
-            Window::new("Error").open(&mut open).show(ctx, |ui| {
-                ui.label(error);
-            });
-
-            if !open {
-                self.last_error = None;
-            }
+        // If last error is Some, moves value into error, clearing last error
+        if let Some(error) = self.error_queue.pop() {
+            // Apparently move is better, rust still does it automatically though
+            std::thread::spawn(move || {
+                let _ = DialogBuilder::message()
+                    .set_level(MessageLevel::Error)
+                    .set_title("Error!")
+                    .set_text(error)
+                    .alert()
+                    .show();
+        });
         }
 
         ctx.request_repaint_after(Duration::from_millis(100));
