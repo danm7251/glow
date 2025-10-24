@@ -51,6 +51,7 @@ impl GlowApp {
                 for song in &self.songs {
                     // Extract UI information from song
                     // Add error handling
+                    // The metadata parsing should probably be seperated once more than the filename needs tracking
                     let song_title = song.file_name().expect("Failed to get file name of song");
                     // Using the add method allows the use of sense to make the label interactive
                     // Some depth to display() to explore
