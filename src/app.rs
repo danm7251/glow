@@ -1,6 +1,6 @@
 use eframe::{App as eframeApp, egui::{Context as eguiContext, CentralPanel, Sense, Label}, Frame as eframeFrame};
 use native_dialog::{DialogBuilder, MessageLevel};
-use std::time::Duration;
+use std::{collections::VecDeque, time::Duration};
 use std::path::PathBuf;
 use std::fs::read_dir;
 
@@ -9,16 +9,16 @@ use crate::audio::AudioEngine;
 pub struct GlowApp {
     songs: Vec<PathBuf>,
     audio_engine: AudioEngine,
-    error_queue: Vec<String>, //LIFO, FIFO?
+    error_queue: VecDeque<String>, // VecDeque for FIFO
 }
 
 impl Default for GlowApp {
     fn default() -> Self {
-        let mut error_queue = Vec::new();
+        let mut error_queue = VecDeque::new();
         let songs = match load_songs("songs") {
             Ok(list) => list,
             Err(error) => {
-                error_queue.push(format!("Failed to load songs: {}", error));
+                error_queue.push_back(format!("Failed to load songs: {}", error));
                 Vec::new()
             }
         };
@@ -59,7 +59,7 @@ impl GlowApp {
                     if label.clicked() {
                         // The contents of the if statement only runs if there is an error
                         if let Err(error) = self.audio_engine.play_song(song) {
-                            self.error_queue.push(format!("Playback failed: {}", error));
+                            self.error_queue.push_back(format!("Playback failed: {}", error));
                         };
                     }
 
@@ -74,7 +74,7 @@ impl GlowApp {
         });
 
         // If last error is Some, moves value into error, clearing last error
-        if let Some(error) = self.error_queue.pop() {
+        if let Some(error) = self.error_queue.pop_front() {
             // Apparently move is better, rust still does it automatically though
             std::thread::spawn(move || {
                 let _ = DialogBuilder::message()
