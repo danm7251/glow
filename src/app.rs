@@ -1,13 +1,13 @@
 use eframe::{App as eframeApp, egui::{Context as eguiContext, CentralPanel, Sense, Label}, Frame as eframeFrame};
 use native_dialog::{DialogBuilder, MessageLevel};
 use std::{collections::VecDeque, time::Duration};
-use std::path::PathBuf;
 use std::fs::read_dir;
 
 use crate::audio::AudioEngine;
+use crate::song::Song;
 
 pub struct GlowApp {
-    songs: Vec<PathBuf>,
+    songs: Vec<Song>,
     audio_engine: AudioEngine,
     error_queue: VecDeque<String>, // VecDeque for FIFO
 }
@@ -52,14 +52,20 @@ impl GlowApp {
                     // Extract UI information from song
                     // Add error handling
                     // The metadata parsing should probably be seperated once more than the filename needs tracking
-                    let song_title = song.file_name().expect("Failed to get file name of song");
+
+                    // Should i create a song struct and extract metadata when instantiating through load songs fn
+                    // Should i create a standalone fn that extracts all metadata for each label
+                    // Song struct means extraction occurs once per song and data is more reusable
+                    // Removes possibility of error in GUI as only songs instantiated succsessfully will be available to display
+                    // If I use a standalone fn adding a label must depend on the result of the fn
+
                     // Using the add method allows the use of sense to make the label interactive
                     // Some depth to display() to explore
-                    let label = ui.add(Label::new(song_title.display().to_string()).sense(Sense::click()));
+                    let label = ui.add(Label::new(song.title.display().to_string()).sense(Sense::click()));
 
                     if label.clicked() {
                         // The contents of the if statement only runs if there is an error
-                        if let Err(error) = self.audio_engine.play_song(song) {
+                        if let Err(error) = self.audio_engine.play_song(&song.path) {
                             self.error_queue.push_back(format!("Playback failed: {}", error));
                         };
                     }
@@ -92,7 +98,7 @@ impl GlowApp {
 }
 
 
-fn load_songs(target_folder: &str) -> std::io::Result<Vec<PathBuf>> {
+fn load_songs(target_folder: &str) -> std::io::Result<Vec<Song>> {
     let mut songs = Vec::new();
 
     let entries = read_dir(target_folder)?;
@@ -106,7 +112,10 @@ fn load_songs(target_folder: &str) -> std::io::Result<Vec<PathBuf>> {
         if let Some(ext) = path.extension() {
             // Windows allows capitals in extensions so ignore case
             if ext.eq_ignore_ascii_case("mp3") {
-                songs.push(path);
+                // Only appends cleanly initialised songs
+                if let Some(song) = Song::new(&path) {
+                    songs.push(song);
+                }
             }
         }
     }

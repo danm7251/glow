@@ -1,5 +1,6 @@
 mod app;
 mod audio;
+mod song;
 
 use eframe::{Result as eframeResult, NativeOptions as eframeNativeOptions, run_native as eframe_run_native};
 
