@@ -1,5 +1,6 @@
-use eframe::{App as eframeApp, egui::{Context as eguiContext, CentralPanel, Sense, Label}, Frame as eframeFrame};
+use eframe::{egui::{CentralPanel, Context as eguiContext, Label, Sense, TopBottomPanel}, App as eframeApp, Frame as eframeFrame};
 use native_dialog::{DialogBuilder, MessageLevel};
+use id3::{Tag};
 use std::{collections::VecDeque, time::Duration};
 use std::fs::read_dir;
 
@@ -33,12 +34,34 @@ impl Default for GlowApp {
 
 impl eframeApp for GlowApp {
     fn update(&mut self, ctx: &eguiContext, _frame: &mut eframeFrame) {
+        self.audio_engine.update();
         self.render_ui(ctx);
     }
 }
 
 impl GlowApp {
     fn render_ui(&mut self, ctx: &eguiContext) {
+
+        TopBottomPanel::bottom("playback_control").show(ctx, |ui| {
+            match self.audio_engine.is_playing {
+                false => {
+                    if ui.button("Play").clicked() {
+                        self.audio_engine.resume();
+                    }
+                }
+                true => {
+                    if ui.button("Pause").clicked() {
+                        self.audio_engine.pause();
+                    }                    
+                }
+            }
+
+            if ui.button("Stop").clicked() {
+                if self.audio_engine.is_playing {
+                    self.audio_engine.stop();
+                }
+            }
+        });
 
         // Show takes the closure and creates a UI object to pass to it
         CentralPanel::default().show(ctx, |ui| {
@@ -49,15 +72,6 @@ impl GlowApp {
                 ui.label("No songs found...");
             } else {
                 for song in &self.songs {
-                    // Extract UI information from song
-                    // Add error handling
-                    // The metadata parsing should probably be seperated once more than the filename needs tracking
-
-                    // Should i create a song struct and extract metadata when instantiating through load songs fn
-                    // Should i create a standalone fn that extracts all metadata for each label
-                    // Song struct means extraction occurs once per song and data is more reusable
-                    // Removes possibility of error in GUI as only songs instantiated succsessfully will be available to display
-                    // If I use a standalone fn adding a label must depend on the result of the fn
 
                     // Using the add method allows the use of sense to make the label interactive
                     // Some depth to display() to explore
@@ -121,4 +135,8 @@ fn load_songs(target_folder: &str) -> std::io::Result<Vec<Song>> {
     }
 
     Ok(songs)
+}
+
+fn edit_metadata(song: Song) {
+    let tag = Tag::read_from_path(song.path);
 }
