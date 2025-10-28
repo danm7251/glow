@@ -9,7 +9,7 @@ const TEST: bool = false;
 // When app is closed rodio prints to console about the outputstream being dropped
 pub struct AudioEngine {
     pub is_playing: bool,
-    stream_handle: OutputStream,
+    _stream_handle: OutputStream,
     sink: Sink,
 }
 
@@ -20,7 +20,7 @@ impl AudioEngine {
 
         Self {
             is_playing: false,
-            stream_handle,
+            _stream_handle: stream_handle,
             sink,
         }
     }

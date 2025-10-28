@@ -1,8 +1,8 @@
 use eframe::{egui::{CentralPanel, Context as eguiContext, Label, Sense, TopBottomPanel}, App as eframeApp, Frame as eframeFrame};
 use native_dialog::{DialogBuilder, MessageLevel};
-use id3::{Tag};
 use std::{collections::VecDeque, time::Duration};
 use std::fs::read_dir;
+use std::io::stdin;
 
 use crate::audio::AudioEngine;
 use crate::song::Song;
@@ -71,11 +71,12 @@ impl GlowApp {
             if self.songs.is_empty() {
                 ui.label("No songs found...");
             } else {
-                for song in &self.songs {
+                // Changed to &mut self to set title --CHECK--
+                for song in &mut self.songs {
 
                     // Using the add method allows the use of sense to make the label interactive
                     // Some depth to display() to explore
-                    let label = ui.add(Label::new(song.title.display().to_string()).sense(Sense::click()));
+                    let label = ui.add(Label::new(&song.display_title).sense(Sense::click()));
 
                     if label.clicked() {
                         // The contents of the if statement only runs if there is an error
@@ -88,6 +89,9 @@ impl GlowApp {
                     label.context_menu(|ui| {
                         if ui.button("Edit").clicked() {
                             println!("Edit!");
+                            let mut input = String::new();
+                            stdin().read_line(&mut input).expect("Failed to read line");
+                            song.set_title(input);
                         }
                     });
                 }
@@ -135,8 +139,4 @@ fn load_songs(target_folder: &str) -> std::io::Result<Vec<Song>> {
     }
 
     Ok(songs)
-}
-
-fn edit_metadata(song: Song) {
-    let tag = Tag::read_from_path(song.path);
 }
