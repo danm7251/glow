@@ -6,11 +6,27 @@ use std::fs::read_dir;
 use crate::audio::AudioEngine;
 use crate::song::Song;
 
+pub struct EditWindowBuffer {
+    title: String,
+    artist: String,
+}
+
+impl EditWindowBuffer {
+    // Later allow input in order to show current title etc.
+    pub fn new() -> Self {
+        Self {
+            title: String::new(),
+            artist: String::new(),
+        }
+    }
+}
+
 pub struct GlowApp {
     songs: Vec<Song>,
     audio_engine: AudioEngine,
     error_queue: VecDeque<String>, // VecDeque for FIFO
-    edit_window: bool, // Store all text data as a struct? or maybe a 2D array: edit_buffer
+    // Option seems like elegant replacement for bool is_open field in EditWindow but is creating and destroying one every time really better? Or just use persistent one with bool field
+    edit_window: Option<EditWindowBuffer>
 }
 
 impl Default for GlowApp {
@@ -28,7 +44,7 @@ impl Default for GlowApp {
             songs,
             audio_engine: AudioEngine::new(),
             error_queue,
-            edit_window: false,
+            edit_window: None,
         }
     }
 }
@@ -89,7 +105,7 @@ impl GlowApp {
                     // Right click menu for each song
                     label.context_menu(|ui| {
                         if ui.button("Edit").clicked() {
-                            self.edit_window = true;
+                            self.edit_window = Some(EditWindowBuffer::new());
                         }
                     });
                 }
@@ -109,18 +125,20 @@ impl GlowApp {
         });
         }
 
-        if self.edit_window {
-            let mut text = String::new();
-
+        // issues with referencing/moving
+        if let Some(buffer) = &self.edit_window {
+            // Store textbox inputs in a buffer until saved, if closed early drop buffer, if saved only drop buffer once values have been passed to saving functions
+            // Design a compact buffer struct for all the window fields
+            // Should it persist? or should a new one be created if edit window is open?
             Window::new("Edit metadata").show(ctx, |ui| {
-                ui.add(TextEdit::singleline(&mut text));
+                ui.add(TextEdit::singleline(&mut buffer.title).id_source("new_title"));
                 
                 if ui.button("Close").clicked() {
-                    self.edit_window = false;
+                    self.edit_window = None;
                 }
             });
 
-            println!("{}", text);
+            println!("{}", buffer.title);
         }
 
         ctx.request_repaint_after(Duration::from_millis(100));
