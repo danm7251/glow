@@ -1,8 +1,7 @@
-use eframe::{egui::{CentralPanel, Context as eguiContext, Label, Sense, TopBottomPanel}, App as eframeApp, Frame as eframeFrame};
+use eframe::{egui::{CentralPanel, Context as eguiContext, Label, Sense, TextEdit, TopBottomPanel, Window}, App as eframeApp, Frame as eframeFrame};
 use native_dialog::{DialogBuilder, MessageLevel};
 use std::{collections::VecDeque, time::Duration};
 use std::fs::read_dir;
-use std::io::stdin;
 
 use crate::audio::AudioEngine;
 use crate::song::Song;
@@ -11,6 +10,7 @@ pub struct GlowApp {
     songs: Vec<Song>,
     audio_engine: AudioEngine,
     error_queue: VecDeque<String>, // VecDeque for FIFO
+    edit_window: bool, // Store all text data as a struct? or maybe a 2D array: edit_buffer
 }
 
 impl Default for GlowApp {
@@ -28,6 +28,7 @@ impl Default for GlowApp {
             songs,
             audio_engine: AudioEngine::new(),
             error_queue,
+            edit_window: false,
         }
     }
 }
@@ -88,10 +89,7 @@ impl GlowApp {
                     // Right click menu for each song
                     label.context_menu(|ui| {
                         if ui.button("Edit").clicked() {
-                            println!("Edit!");
-                            let mut input = String::new();
-                            stdin().read_line(&mut input).expect("Failed to read line");
-                            song.set_title(input);
+                            self.edit_window = true;
                         }
                     });
                 }
@@ -109,6 +107,20 @@ impl GlowApp {
                     .alert()
                     .show();
         });
+        }
+
+        if self.edit_window {
+            let mut text = String::new();
+
+            Window::new("Edit metadata").show(ctx, |ui| {
+                ui.add(TextEdit::singleline(&mut text));
+                
+                if ui.button("Close").clicked() {
+                    self.edit_window = false;
+                }
+            });
+
+            println!("{}", text);
         }
 
         ctx.request_repaint_after(Duration::from_millis(100));
