@@ -6,6 +6,7 @@ use std::fs::read_dir;
 use crate::audio::AudioEngine;
 use crate::song::Song;
 
+#[derive(Debug)]
 pub struct EditWindowBuffer {
     title: String,
     artist: String,
@@ -125,20 +126,18 @@ impl GlowApp {
         });
         }
 
-        // issues with referencing/moving
-        if let Some(buffer) = &self.edit_window {
+        // check id_source, comment on unfamiliar concepts eg Option::take
+        if let Some(mut buffer) = self.edit_window.take() {
             // Store textbox inputs in a buffer until saved, if closed early drop buffer, if saved only drop buffer once values have been passed to saving functions
             // Design a compact buffer struct for all the window fields
             // Should it persist? or should a new one be created if edit window is open?
             Window::new("Edit metadata").show(ctx, |ui| {
                 ui.add(TextEdit::singleline(&mut buffer.title).id_source("new_title"));
-                
-                if ui.button("Close").clicked() {
-                    self.edit_window = None;
+
+                if !ui.button("Close").clicked() {
+                    self.edit_window = Some(buffer);
                 }
             });
-
-            println!("{}", buffer.title);
         }
 
         ctx.request_repaint_after(Duration::from_millis(100));
