@@ -1,0 +1,16 @@
+A lot of design questions to consider:
+    -   The code block that sets the edit flag has access to the song but the edit block does not.
+        This poses the question of how to track/reference songs as we need to mutate the struct and do not want to mutate a cloned version.
+        Upgrades to the songs vector may be needed. One option is a unique song_id, perhaps creating a Library struct to manage them but it feels overcomplicated.
+
+    -   Disparities between the tags and title displayed need to be accounted for. Can we avoid redundacy in having a tag title and a display title?
+
+    -   Huge amounts of error handling need addressing
+
+    -   Design review and overhaul
+
+    -   Project structure needs a review
+
+    -   Is the buffer truly the best solution
+
+    -   Huge WIP

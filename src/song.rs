@@ -30,14 +30,4 @@ impl Song {
             }
         )
     }
-
-    pub fn set_title(&mut self, title: String) {
-        let mut tag = match Tag::read_from_path(&self.path) {
-            Ok(tag) => tag,
-            Err(e) => panic!("Failed to open tag {:?}", e),
-        };
-        tag.set_title(title.clone());
-        tag.write_to_path(&self.path, id3::Version::Id3v24).unwrap();
-        self.display_title = title;
-    }
 }

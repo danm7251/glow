@@ -3,13 +3,12 @@ use native_dialog::{DialogBuilder, MessageLevel};
 use std::{collections::VecDeque, time::Duration};
 use std::fs::read_dir;
 
-use crate::audio::AudioEngine;
+use crate::{audio::AudioEngine, io::TagWriter};
 use crate::song::Song;
 
 #[derive(Debug)]
 pub struct EditWindowBuffer {
     title: String,
-    artist: String,
 }
 
 impl EditWindowBuffer {
@@ -17,7 +16,6 @@ impl EditWindowBuffer {
     pub fn new() -> Self {
         Self {
             title: String::new(),
-            artist: String::new(),
         }
     }
 }
@@ -94,7 +92,7 @@ impl GlowApp {
 
                     // Using the add method allows the use of sense to make the label interactive
                     // Some depth to display() to explore
-                    let label = ui.add(Label::new(&song.display_title).sense(Sense::click()));
+                    let label = ui.add(Label::new(&song.title).sense(Sense::click()));
 
                     if label.clicked() {
                         // The contents of the if statement only runs if there is an error
@@ -126,15 +124,24 @@ impl GlowApp {
         });
         }
 
-        // check id_source, comment on unfamiliar concepts eg Option::take
+        // Cannot mutate self.edit_window if it has been moved to be used in the TextEdit.
+        // To satisfy borrow checker use Option::take() which sets self.edit_window to none
         if let Some(mut buffer) = self.edit_window.take() {
+            let mut closed = false;
             // Store textbox inputs in a buffer until saved, if closed early drop buffer, if saved only drop buffer once values have been passed to saving functions
-            // Design a compact buffer struct for all the window fields
-            // Should it persist? or should a new one be created if edit window is open?
             Window::new("Edit metadata").show(ctx, |ui| {
-                ui.add(TextEdit::singleline(&mut buffer.title).id_source("new_title"));
+                ui.add(TextEdit::singleline(&mut buffer.title));
 
-                if !ui.button("Close").clicked() {
+                if ui.button("Close").clicked() {
+                    closed = true;
+                }
+                if ui.button("Save").clicked() {
+                    TagWriter::save_metadata(song);
+                    closed = true;
+                }
+
+                // If user has not closed window put the buffer back into self.edit_window to keep it alive
+                if !closed {
                     self.edit_window = Some(buffer);
                 }
             });
