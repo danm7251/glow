@@ -88,11 +88,9 @@ impl GlowApp {
             if self.songs.is_empty() {
                 ui.label("No songs found...");
             } else {
-                // Changed to &mut self to set title --CHECK--
-                for song in &mut self.songs {
+                for song in &self.songs {
 
                     // Using the add method allows the use of sense to make the label interactive
-                    // Some depth to display() to explore
                     let label = ui.add(Label::new(&song.display_title).sense(Sense::click()));
 
                     if label.clicked() {
@@ -105,7 +103,7 @@ impl GlowApp {
                     // Right click menu for each song
                     label.context_menu(|ui| {
                         if ui.button("Edit").clicked() {
-                            // Pass song_id as value as a reference would outlive &mut songs
+                            // Pass song_id as value as a reference would outlive &songs
                             self.edit_window = Some(EditWindowBuffer::new(song.song_id));
                         }
                     });
