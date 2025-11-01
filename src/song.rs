@@ -3,6 +3,7 @@ use std::{path::PathBuf};
 use id3::{Tag, TagLike};
 
 pub struct Song {
+    pub song_id: usize,
     pub path: PathBuf,
     pub display_title: String,
 }
@@ -12,7 +13,7 @@ pub struct Song {
 // Allowing the GUI to skip them
 
 impl Song {
-    pub fn new(path: &PathBuf) -> Option<Self> {
+    pub fn new(song_id: usize, path: &PathBuf) -> Option<Self> {
         // Prepares filename for display returns None if file_name returns None
         let filename = path.file_name()?.to_string_lossy().into_owned();
 
@@ -25,6 +26,7 @@ impl Song {
 
         Some(
             Self {
+                song_id,
                 path: path.clone(),
                 display_title,
             }

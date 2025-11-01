@@ -3,18 +3,18 @@ use native_dialog::{DialogBuilder, MessageLevel};
 use std::{collections::VecDeque, time::Duration};
 use std::fs::read_dir;
 
-use crate::{audio::AudioEngine, io::TagWriter};
-use crate::song::Song;
+use crate::{audio::AudioEngine, song::Song};
 
-#[derive(Debug)]
 pub struct EditWindowBuffer {
+    song_id: usize,
     title: String,
 }
 
 impl EditWindowBuffer {
     // Later allow input in order to show current title etc.
-    pub fn new() -> Self {
+    pub fn new(song_id: usize) -> Self {
         Self {
+            song_id,
             title: String::new(),
         }
     }
@@ -24,7 +24,6 @@ pub struct GlowApp {
     songs: Vec<Song>,
     audio_engine: AudioEngine,
     error_queue: VecDeque<String>, // VecDeque for FIFO
-    // Option seems like elegant replacement for bool is_open field in EditWindow but is creating and destroying one every time really better? Or just use persistent one with bool field
     edit_window: Option<EditWindowBuffer>
 }
 
@@ -56,6 +55,10 @@ impl eframeApp for GlowApp {
 }
 
 impl GlowApp {
+    pub fn get_song_mut(&mut self, song_id: usize) -> Option<&mut Song> {
+        self.songs.iter_mut().find(|s| s.song_id == song_id)
+    }
+
     fn render_ui(&mut self, ctx: &eguiContext) {
 
         TopBottomPanel::bottom("playback_control").show(ctx, |ui| {
@@ -73,9 +76,7 @@ impl GlowApp {
             }
 
             if ui.button("Stop").clicked() {
-                if self.audio_engine.is_playing {
-                    self.audio_engine.stop();
-                }
+                self.audio_engine.stop();
             }
         });
 
@@ -92,7 +93,7 @@ impl GlowApp {
 
                     // Using the add method allows the use of sense to make the label interactive
                     // Some depth to display() to explore
-                    let label = ui.add(Label::new(&song.title).sense(Sense::click()));
+                    let label = ui.add(Label::new(&song.display_title).sense(Sense::click()));
 
                     if label.clicked() {
                         // The contents of the if statement only runs if there is an error
@@ -104,7 +105,8 @@ impl GlowApp {
                     // Right click menu for each song
                     label.context_menu(|ui| {
                         if ui.button("Edit").clicked() {
-                            self.edit_window = Some(EditWindowBuffer::new());
+                            // Pass song_id as value as a reference would outlive &mut songs
+                            self.edit_window = Some(EditWindowBuffer::new(song.song_id));
                         }
                     });
                 }
@@ -136,7 +138,11 @@ impl GlowApp {
                     closed = true;
                 }
                 if ui.button("Save").clicked() {
-                    TagWriter::save_metadata(song);
+                    if let Some(song) = self.get_song_mut(buffer.song_id) {
+                        println!("{:?}", song.display_title);
+                    } else {
+                        self.error_queue.push_back("(EditWindow) Song not found".to_string());
+                    }
                     closed = true;
                 }
 
@@ -158,7 +164,8 @@ fn load_songs(target_folder: &str) -> std::io::Result<Vec<Song>> {
     let entries = read_dir(target_folder)?;
     // ? provides an unwrapped ReadDir or returns an error
 
-    for entry in entries.flatten() {
+    // Don't need to provide error handling for id as hitting usize max is impossible
+    for (id, entry) in entries.flatten().enumerate() {
         // Flatten discards any failed files
         let path = entry.path();
 
@@ -167,7 +174,7 @@ fn load_songs(target_folder: &str) -> std::io::Result<Vec<Song>> {
             // Windows allows capitals in extensions so ignore case
             if ext.eq_ignore_ascii_case("mp3") {
                 // Only appends cleanly initialised songs
-                if let Some(song) = Song::new(&path) {
+                if let Some(song) = Song::new(id, &path) {
                     songs.push(song);
                 }
             }
