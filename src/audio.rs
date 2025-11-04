@@ -3,8 +3,6 @@ use rodio::{Decoder, OutputStream, OutputStreamBuilder, Sink};
 use std::path::PathBuf;
 use std::fs::File;
 
-const TEST: bool = false;
-
 // May need stream_handle later
 // When app is closed rodio prints to console about the outputstream being dropped
 pub struct AudioEngine {
@@ -25,7 +23,6 @@ impl AudioEngine {
         }
     }
 
-    // Learn more about the Box type for error handling
     // Returns Box error type as DecoderError and FileError are incompatible
     pub fn play_song(&mut self, path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
 
@@ -38,11 +35,7 @@ impl AudioEngine {
         self.sink.append(source);
         self.is_playing = true;
 
-        if TEST {
-            Err(Box::new(DecoderError::UnrecognizedFormat))
-        } else {
-            Ok(())
-        }
+        Ok(())
     }
 
     pub fn pause(&mut self) {

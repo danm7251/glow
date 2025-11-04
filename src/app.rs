@@ -3,8 +3,9 @@ use native_dialog::{DialogBuilder, MessageLevel};
 use std::{collections::VecDeque, time::Duration};
 use std::fs::read_dir;
 
-use crate::{audio::AudioEngine, song::Song};
+use crate::{audio::AudioEngine, io::TagWriter, song::Song};
 
+// Temporary state for song metadata editing
 pub struct EditWindowBuffer {
     song_id: usize,
     title: String,
@@ -103,7 +104,7 @@ impl GlowApp {
                     // Right click menu for each song
                     label.context_menu(|ui| {
                         if ui.button("Edit").clicked() {
-                            // Pass song_id as value as a reference would outlive &songs
+                            // Pass song_id as value as storing song in another part of self is bad
                             self.edit_window = Some(EditWindowBuffer::new(song.song_id));
                         }
                     });
@@ -137,9 +138,9 @@ impl GlowApp {
                 }
                 if ui.button("Save").clicked() {
                     if let Some(song) = self.get_song_mut(buffer.song_id) {
-                        println!("{:?}", song.display_title);
+                        song.display_title = buffer.title.clone();
                     } else {
-                        self.error_queue.push_back("(EditWindow) Song not found".to_string());
+                        self.error_queue.push_back("(EditWindow) Failed to save title in memory".to_string());
                     }
                     closed = true;
                 }
