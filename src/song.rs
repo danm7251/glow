@@ -1,4 +1,4 @@
-use std::{path::PathBuf};
+use std::path::PathBuf;
 
 use id3::{Tag, TagLike};
 
@@ -24,12 +24,10 @@ impl Song {
             Err(_) => filename,
         };
 
-        Some(
-            Self {
-                song_id,
-                path: path.clone(),
-                display_title,
-            }
-        )
+        Some(Self {
+            song_id,
+            path: path.clone(),
+            display_title,
+        })
     }
 }

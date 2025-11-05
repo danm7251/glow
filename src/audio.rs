@@ -1,7 +1,6 @@
-use rodio::decoder::DecoderError;
 use rodio::{Decoder, OutputStream, OutputStreamBuilder, Sink};
-use std::path::PathBuf;
 use std::fs::File;
+use std::path::PathBuf;
 
 // May need stream_handle later
 // When app is closed rodio prints to console about the outputstream being dropped
@@ -13,7 +12,8 @@ pub struct AudioEngine {
 
 impl AudioEngine {
     pub fn new() -> Self {
-        let stream_handle = OutputStreamBuilder::open_default_stream().expect("Open default audio stream");
+        let stream_handle =
+            OutputStreamBuilder::open_default_stream().expect("Open default audio stream");
         let sink = Sink::connect_new(&stream_handle.mixer());
 
         Self {
@@ -25,7 +25,6 @@ impl AudioEngine {
 
     // Returns Box error type as DecoderError and FileError are incompatible
     pub fn play_song(&mut self, path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
-
         // Opening and decoding songs each time could impact performance, try caching?
 
         let file = File::open(path)?;

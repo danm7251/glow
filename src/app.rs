@@ -1,9 +1,13 @@
-use eframe::{egui::{CentralPanel, Context as eguiContext, Label, Sense, TextEdit, TopBottomPanel, Window}, App as eframeApp, Frame as eframeFrame};
+use eframe::{
+    App as eframeApp, Frame as eframeFrame,
+    egui::{CentralPanel, Context as eguiContext, Label, Sense, TextEdit, TopBottomPanel, Window},
+};
+use id3::{Tag, TagLike};
 use native_dialog::{DialogBuilder, MessageLevel};
-use std::{collections::VecDeque, time::Duration};
 use std::fs::read_dir;
+use std::{collections::VecDeque, time::Duration};
 
-use crate::{audio::AudioEngine, io::TagWriter, song::Song};
+use crate::{audio::AudioEngine, song::Song};
 
 // Temporary state for song metadata editing
 pub struct EditWindowBuffer {
@@ -19,13 +23,20 @@ impl EditWindowBuffer {
             title: String::new(),
         }
     }
+
+    // Consider cloning / moving, ref etc
+    pub fn update_fields(&mut self, new_title: Option<String>) {
+        if let Some(title) = new_title {
+            self.title = title;
+        }
+    }
 }
 
 pub struct GlowApp {
     songs: Vec<Song>,
     audio_engine: AudioEngine,
     error_queue: VecDeque<String>, // VecDeque for FIFO
-    edit_window: Option<EditWindowBuffer>
+    edit_window: Option<EditWindowBuffer>,
 }
 
 impl Default for GlowApp {
@@ -61,7 +72,6 @@ impl GlowApp {
     }
 
     fn render_ui(&mut self, ctx: &eguiContext) {
-
         TopBottomPanel::bottom("playback_control").show(ctx, |ui| {
             match self.audio_engine.is_playing {
                 false => {
@@ -72,7 +82,7 @@ impl GlowApp {
                 true => {
                     if ui.button("Pause").clicked() {
                         self.audio_engine.pause();
-                    }                    
+                    }
                 }
             }
 
@@ -90,14 +100,14 @@ impl GlowApp {
                 ui.label("No songs found...");
             } else {
                 for song in &self.songs {
-
                     // Using the add method allows the use of sense to make the label interactive
                     let label = ui.add(Label::new(&song.display_title).sense(Sense::click()));
 
                     if label.clicked() {
                         // The contents of the if statement only runs if there is an error
                         if let Err(error) = self.audio_engine.play_song(&song.path) {
-                            self.error_queue.push_back(format!("Playback failed: {}", error));
+                            self.error_queue
+                                .push_back(format!("Playback failed: {}", error));
                         };
                     }
 
@@ -105,7 +115,9 @@ impl GlowApp {
                     label.context_menu(|ui| {
                         if ui.button("Edit").clicked() {
                             // Pass song_id as value as storing song in another part of self is bad
-                            self.edit_window = Some(EditWindowBuffer::new(song.song_id));
+                            let mut buffer = EditWindowBuffer::new(song.song_id);
+                            buffer.update_fields(Some(song.display_title.clone()));
+                            self.edit_window = Some(buffer);
                         }
                     });
                 }
@@ -122,7 +134,7 @@ impl GlowApp {
                     .set_text(error)
                     .alert()
                     .show();
-        });
+            });
         }
 
         // Cannot mutate self.edit_window if it has been moved to be used in the TextEdit.
@@ -139,8 +151,13 @@ impl GlowApp {
                 if ui.button("Save").clicked() {
                     if let Some(song) = self.get_song_mut(buffer.song_id) {
                         song.display_title = buffer.title.clone();
+                        if let Err(e) = save_metadata(song) {
+                            self.error_queue
+                                .push_back(format!("Failed to write song to disk: {}", e));
+                        }
                     } else {
-                        self.error_queue.push_back("(EditWindow) Failed to save title in memory".to_string());
+                        self.error_queue
+                            .push_back("Failed to get &mut song by id".to_string());
                     }
                     closed = true;
                 }
@@ -156,6 +173,13 @@ impl GlowApp {
     }
 }
 
+fn save_metadata(song: &Song) -> id3::Result<()> {
+    let mut tag = Tag::read_from_path(&song.path)?;
+    tag.set_title(&song.display_title);
+    tag.write_to_path(&song.path, id3::Version::Id3v24)?;
+
+    Ok(())
+}
 
 fn load_songs(target_folder: &str) -> std::io::Result<Vec<Song>> {
     let mut songs = Vec::new();
