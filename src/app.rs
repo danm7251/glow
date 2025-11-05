@@ -13,21 +13,16 @@ use crate::{audio::AudioEngine, song::Song};
 pub struct EditWindowBuffer {
     song_id: usize,
     title: String,
+    artist: String,
 }
 
 impl EditWindowBuffer {
     // Later allow input in order to show current title etc.
-    pub fn new(song_id: usize) -> Self {
+    pub fn new(song: &Song) -> Self {
         Self {
-            song_id,
-            title: String::new(),
-        }
-    }
-
-    // Consider cloning / moving, ref etc
-    pub fn update_fields(&mut self, new_title: Option<String>) {
-        if let Some(title) = new_title {
-            self.title = title;
+            song_id: song.song_id,
+            title: song.display_title.clone(),
+            artist: song.display_artist.clone(),
         }
     }
 }
@@ -100,25 +95,28 @@ impl GlowApp {
                 ui.label("No songs found...");
             } else {
                 for song in &self.songs {
-                    // Using the add method allows the use of sense to make the label interactive
-                    let label = ui.add(Label::new(&song.display_title).sense(Sense::click()));
-
-                    if label.clicked() {
-                        // The contents of the if statement only runs if there is an error
-                        if let Err(error) = self.audio_engine.play_song(&song.path) {
-                            self.error_queue
-                                .push_back(format!("Playback failed: {}", error));
-                        };
-                    }
-
-                    // Right click menu for each song
-                    label.context_menu(|ui| {
-                        if ui.button("Edit").clicked() {
-                            // Pass song_id as value as storing song in another part of self is bad
-                            let mut buffer = EditWindowBuffer::new(song.song_id);
-                            buffer.update_fields(Some(song.display_title.clone()));
-                            self.edit_window = Some(buffer);
+                    ui.horizontal(|ui| {
+                        let title_label = ui.add(Label::new(&song.display_title).sense(Sense::click()));
+                        let artist_label = ui.add(Label::new(&song.display_artist).sense(Sense::click()));
+                                        // Using the add method allows the use of sense to make the label interactive
+                        if title_label.clicked() {
+                            // The contents of the if statement only runs if there is an error
+                            if let Err(error) = self.audio_engine.play_song(&song.path) {
+                                self.error_queue
+                                    .push_back(format!("Playback failed: {}", error));
+                            };
                         }
+
+                        if artist_label.clicked() {
+                            // TODO: filter songs by artist
+                        }
+
+                        // Right click menu for each song
+                        title_label.context_menu(|ui| {
+                            if ui.button("Edit").clicked() {
+                                self.edit_window = Some(EditWindowBuffer::new(song));
+                            }
+                        });
                     });
                 }
             }
@@ -139,43 +137,59 @@ impl GlowApp {
 
         // Cannot mutate self.edit_window if it has been moved to be used in the TextEdit.
         // To satisfy borrow checker use Option::take() which sets self.edit_window to none
-        if let Some(mut buffer) = self.edit_window.take() {
-            let mut closed = false;
-            // Store textbox inputs in a buffer until saved, if closed early drop buffer, if saved only drop buffer once values have been passed to saving functions
-            Window::new("Edit metadata").show(ctx, |ui| {
-                ui.add(TextEdit::singleline(&mut buffer.title));
-
-                if ui.button("Close").clicked() {
-                    closed = true;
-                }
-                if ui.button("Save").clicked() {
-                    if let Some(song) = self.get_song_mut(buffer.song_id) {
-                        song.display_title = buffer.title.clone();
-                        if let Err(e) = save_metadata(song) {
-                            self.error_queue
-                                .push_back(format!("Failed to write song to disk: {}", e));
-                        }
-                    } else {
-                        self.error_queue
-                            .push_back("Failed to get &mut song by id".to_string());
-                    }
-                    closed = true;
-                }
-
-                // If user has not closed window put the buffer back into self.edit_window to keep it alive
-                if !closed {
-                    self.edit_window = Some(buffer);
-                }
-            });
+        if let Some(buffer) = self.edit_window.take() {
+            match self.render_edit_window(ctx, buffer) {
+                Ok(Some(buffer)) => self.edit_window = Some(buffer),
+                Ok(None) => (),
+                Err(e) => self.error_queue.push_back(e),
+            }
         }
 
         ctx.request_repaint_after(Duration::from_millis(100));
+    }
+
+    fn render_edit_window(
+        &mut self,
+        ctx: &eguiContext,
+        mut buffer: EditWindowBuffer,
+    ) -> Result<Option<EditWindowBuffer>, String> {
+        let mut closed = false;
+        let mut error: Option<String> = None;
+        // Store textbox inputs in a buffer until saved, if closed early drop buffer, if saved only drop buffer once values have been passed to saving functions
+        Window::new("Edit metadata").show(ctx, |ui| {
+            ui.add(TextEdit::singleline(&mut buffer.title));
+            ui.add(TextEdit::singleline(&mut buffer.artist));
+
+            if ui.button("Close").clicked() {
+                closed = true;
+            }
+            if ui.button("Save").clicked() {
+                if let Some(song) = self.get_song_mut(buffer.song_id) {
+                    song.display_title = buffer.title.clone();
+                    song.display_artist = buffer.artist.clone();
+                    if let Err(e) = save_metadata(song) {
+                        error = Some(format!("Failed to write song to disk: {}", e));
+                    }
+                } else {
+                    error = Some("Failed to get &mut song by id".to_string());
+                }
+                closed = true;
+            }
+        });
+
+        if let Some(e) = error {
+            return Err(e);
+        }
+
+        // If user has not closed window put the buffer back into self.edit_window to keep it alive
+        if !closed { Ok(Some(buffer)) } else { Ok(None) }
     }
 }
 
 fn save_metadata(song: &Song) -> id3::Result<()> {
     let mut tag = Tag::read_from_path(&song.path)?;
     tag.set_title(&song.display_title);
+    tag.set_artist(&song.display_artist);
     tag.write_to_path(&song.path, id3::Version::Id3v24)?;
 
     Ok(())
