@@ -1,5 +1,4 @@
 use std::path::PathBuf;
-
 use id3::{Tag, TagLike};
 
 pub struct Song {
@@ -9,18 +8,11 @@ pub struct Song {
     pub display_artist: String,
 }
 
-// Encapsulates the extraction of metadata from song files
-// If there are any errors returns None avoiding the GUI having to handle them
-// Allowing the GUI to skip them
-
 impl Song {
     pub fn new(song_id: usize, path: &PathBuf) -> Option<Self> {
-        // Prepares filename for display returns None if file_name returns None
         let filename = path.file_name()?.to_string_lossy().into_owned();
-
         let tag_result = Tag::read_from_path(path);
-        // Attempts to read tag, if it fails or title is None falls back to filename
-        // Consider only retrieving filename on fail or None
+
         let display_title = match &tag_result {
             Ok(tag) => tag.title().unwrap_or_else(|| &filename).to_string(),
             Err(_) => filename,

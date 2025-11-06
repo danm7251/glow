@@ -1,27 +1,4 @@
-A lot of design questions to consider:
-    -   The code block that sets the edit flag has access to the song but the edit block does not.
-        This poses the question of how to track/reference songs as we need to mutate the struct and do not want to mutate a cloned version.
-        Upgrades to the songs vector may be needed. One option is a unique song_id, perhaps creating a Library struct to manage them but it feels overcomplicated.
-
-    -   Disparities between the tags and title displayed need to be accounted for. Can we avoid redundacy in having a tag title and a display title?
-
-    -   Huge amounts of error handling need addressing
-
-    -   Design review and overhaul
-
-    -   Project structure needs a review
-
-    -   Is the buffer truly the best solution
-
-    -   Huge WIP
-
     -   The edit window can only be created by right clicking on a song. So it only needs access to one song.
-        It has textboxes for title and artist. These should be prefilled with the current data.
-        From a users perspective it doesn't matter if the title is a tag or a filename so if there is no tag,
-        the filename should prefill the boxes. If the user closes the window nothing happens. If the user saves it attempts to save.
-        If there are any errors in saving it stops and keeps the window open displaying the error.
-
-        This means that to the edit window there is no difference between the filename and title and thus display_title is valid.
-        FOr the artist section no tag means it should display unknown artist. This probably needs to be handled in the song constructor.
+        If the user saves it attempts to save. If there are any errors in saving it stops and keeps the window open displaying the error.
 
         Validation should be implemented to stop users from setting title and artist as ""
