@@ -4,8 +4,9 @@ use eframe::{
 };
 use id3::{Tag, TagLike};
 use native_dialog::{DialogBuilder, MessageLevel};
-use std::fs::read_dir;
+use std::fs::{copy, read_dir};
 use std::{collections::VecDeque, time::Duration};
+use std::path::PathBuf;
 
 use crate::{audio::AudioEngine, song::Song};
 
@@ -68,11 +69,26 @@ impl GlowApp {
     }
 
     fn render_ui(&mut self, ctx: &eguiContext) {
+        // --- WIP --- (Works but is missing a display reload)
         let dropped_files = ctx.input(|i| i.raw.dropped_files.clone());
         if !dropped_files.is_empty() {
-            // Add support for copying dropped files
-            println!("{:?}", dropped_files);
+            for file in dropped_files {
+                println!("Dropped in! {:?}", file);
+                if let Some(path) = file.path {
+                    if let Some(filename) = path.file_name() {
+                        let target: PathBuf = ["songs", &filename.to_string_lossy()].iter().collect();
+                        if let Err(e) = copy(path, target) {
+                            self.error_queue.push_back(format!("Failed to copy: {:?}", e));
+                        }
+                    } else {
+                        self.error_queue.push_back("Failed to get filename".to_string());
+                    }
+                } else {
+                    self.error_queue.push_back("Failed to get path".to_string());
+                }
+            }
         }
+        // --- WIP ---
 
         TopBottomPanel::bottom("playback_control").show(ctx, |ui| {
             ui.horizontal(|ui| {
@@ -213,6 +229,10 @@ fn save_metadata(song: &Song) -> id3::Result<()> {
     tag.write_to_path(&song.path, id3::Version::Id3v24)?;
 
     Ok(())
+}
+
+fn reload_songs(target_folder: &str) {
+    // TODO
 }
 
 // Generates a Vector of Song structs from a target folder containing .mp3 files
