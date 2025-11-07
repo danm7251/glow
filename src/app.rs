@@ -1,6 +1,6 @@
 use eframe::{
     App as eframeApp, Frame as eframeFrame,
-    egui::{CentralPanel, Context as eguiContext, Label, Sense, TextEdit, TopBottomPanel, Window},
+    egui::{CentralPanel, Context as eguiContext, DroppedFile, Label, Sense, TextEdit, TopBottomPanel, Window},
 };
 use id3::{Tag, TagLike};
 use native_dialog::{DialogBuilder, MessageLevel};
@@ -63,13 +63,13 @@ impl eframeApp for GlowApp {
 }
 
 impl GlowApp {
-    /// Returns a mutable reference to a Song struct from it's ID (may not need to be public)
-    pub fn get_song_mut(&mut self, song_id: usize) -> Option<&mut Song> {
+    /// Returns a mutable reference to a Song struct from it's ID
+    fn get_song_mut(&mut self, song_id: usize) -> Option<&mut Song> {
         self.songs.iter_mut().find(|s| s.song_id == song_id)
     }
 
     fn render_ui(&mut self, ctx: &eguiContext) {
-        // --- WIP --- (Works but is missing a display reload)
+        // --- WIP --- (Ready for testing)
         let dropped_files = ctx.input(|i| i.raw.dropped_files.clone());
         if !dropped_files.is_empty() {
             for file in dropped_files {
@@ -77,8 +77,13 @@ impl GlowApp {
                 if let Some(path) = file.path {
                     if let Some(filename) = path.file_name() {
                         let target: PathBuf = ["songs", &filename.to_string_lossy()].iter().collect();
-                        if let Err(e) = copy(path, target) {
+                        if let Err(e) = copy(&path, &target) {
                             self.error_queue.push_back(format!("Failed to copy: {:?}", e));
+                        } else {
+                            self.songs.push(Song::new(self.songs.len(), &target).unwrap());
+                            for (i,song) in self.songs.iter().enumerate() {
+                                println!("n: {} | id: {}", i, song.song_id);
+                            }
                         }
                     } else {
                         self.error_queue.push_back("Failed to get filename".to_string());
@@ -229,10 +234,6 @@ fn save_metadata(song: &Song) -> id3::Result<()> {
     tag.write_to_path(&song.path, id3::Version::Id3v24)?;
 
     Ok(())
-}
-
-fn reload_songs(target_folder: &str) {
-    // TODO
 }
 
 // Generates a Vector of Song structs from a target folder containing .mp3 files

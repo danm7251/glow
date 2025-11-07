@@ -14,7 +14,7 @@ impl AudioEngine {
     pub fn new() -> Self {
         let stream_handle =
             OutputStreamBuilder::open_default_stream().expect("Open default audio stream");
-        let sink = Sink::connect_new(&stream_handle.mixer());
+        let sink = Sink::connect_new(stream_handle.mixer());
 
         Self {
             is_playing: false,
