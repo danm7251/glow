@@ -4,4 +4,7 @@ songs/*
 **/*.rs.bk
 *.pdb
 .vscode/
+!.vscode/settings.json
+!.vscode/extensions.json
 Thumbs.db
+glow.code-workspace
