@@ -2,3 +2,15 @@
         If the user saves it attempts to save. If there are any errors in saving it stops and keeps the window open displaying the error.
 
         Validation should be implemented to stop users from setting title and artist as ""
+
+Extensions:
+    -   CodeLLDB for debugging
+    -   Dependi for dependency management
+
+Development Dependencies:
+    -   Pretty Assertions for easier debugging using Assertions
+    -   Criterion/Divan for Benchmarking
+    -   Tracy for profiling
+
+Production Dependencies:
+    -   Anyhow for simplifying error handling

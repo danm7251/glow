@@ -1,0 +1,10 @@
+{
+    "recommendations": [
+        "rust-lang.rust-analyzer",
+        "tamasfe.even-better-toml"
+    ],
+    "unwantedRecommendations": [
+        "rust-lang.rust",       // Deprecated, use Rust Analyzer
+        "bungcip.better-toml"   // Deprecated, use Even Better TOML
+    ]
+}
