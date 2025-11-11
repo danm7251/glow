@@ -13,6 +13,11 @@ use std::{collections::VecDeque, time::Duration};
 
 use crate::{audio::AudioEngine, song::Song};
 
+// Temporary hardcoded filepath
+const SONG_FOLDER: &str = "test";
+// Test flags
+const ALLOW_NON_MP3: bool = true;
+
 // Temporary state for song metadata editing
 pub struct EditWindowBuffer {
     song_id: usize,
@@ -41,7 +46,7 @@ pub struct GlowApp {
 impl Default for GlowApp {
     fn default() -> Self {
         let mut error_queue = VecDeque::new();
-        let songs = match load_songs("songs") {
+        let songs = match load_songs(SONG_FOLDER) {
             Ok(list) => list,
             Err(error) => {
                 error_queue.push_back(format!("Failed to load songs: {error}"));
@@ -74,35 +79,38 @@ impl GlowApp {
     /// Returns a result after attempting to copy a slice of ``DroppedFile``s
     /// into a desired folder, construct a song for each one and push it
     /// to self.songs
-    fn copy_and_add_files(
-        &mut self,
-        files: &[DroppedFile], // Accepts a slice as to not limit to Vecs, not necessary
-        target_folder: &str,
-    ) -> Result<(), String> {
-        for file in files {
-            // Debug purposes
-            println!("Dropped in! {file:?}");
+    fn copy_and_add_file(&mut self, file: &DroppedFile, target_folder: &str) -> Result<(), String> {
+        // Debug purposes
+        println!("Dropped in! {file:?}");
 
-            // Path uses as_ref() rather than & to obtain Option<&PathBuf> over &Option<PathBuf>
-            // Ok_or() transforms an Option to a Result to simplify error propogation
-            let path = file.path.as_ref().ok_or("Failed to get path from file")?;
-            let filename = path
-                .file_name()
-                .ok_or("Failed to get filename from path")?
-                .to_string_lossy();
+        // Path uses as_ref() rather than & to obtain Option<&PathBuf> over &Option<PathBuf>
+        // Ok_or() transforms an Option to a Result to simplify error propogation
+        let path = file.path.as_ref().ok_or("Failed to get path from file")?;
 
-            let target: PathBuf = [target_folder, &filename].iter().collect();
+        if !path
+            .extension()
+            .is_some_and(|p| p.eq_ignore_ascii_case("mp3"))
+            && !ALLOW_NON_MP3
+        {
+            return Err(format!("Skipped non-mp3 file: {}", path.to_string_lossy()));
+        }
 
-            // Map_err() is used to return the desired error type simply
-            copy(path, &target).map_err(|e| format!("Failed to copy: {e:?}"))?;
+        let filename = path
+            .file_name()
+            .ok_or("Failed to get filename from path")?
+            .to_string_lossy();
 
-            let song = Song::new(self.songs.len(), &target).ok_or("Failed to create song")?;
-            self.songs.push(song);
+        let target: PathBuf = [target_folder, &filename].iter().collect();
 
-            // Debug purposes
-            for (i, song) in self.songs.iter().enumerate() {
-                println!("n: {i} | id: {}", song.id);
-            }
+        // Map_err() is used to return the desired error type simply
+        copy(path, &target).map_err(|e| format!("Failed to copy: {e:?}"))?;
+
+        let song = Song::new(self.songs.len(), &target).ok_or("Failed to create song")?;
+        self.songs.push(song);
+
+        // Debug purposes
+        for (i, song) in self.songs.iter().enumerate() {
+            println!("n: {i} | id: {}", song.id);
         }
 
         Ok(())
@@ -111,13 +119,11 @@ impl GlowApp {
     /// Main GUI loop
     fn render_ui(&mut self, ctx: &eguiContext) {
         // --- WIP --- (Ready for testing)
-        let dropped_files = ctx.input(|i| i.raw.dropped_files.clone());
-        if !dropped_files.is_empty() {
-            match self.copy_and_add_files(&dropped_files, "songs") {
-                Ok(()) => (),
-                Err(e) => {
-                    self.error_queue.push_back(e);
-                }
+        if !ctx.input(|i| i.raw.dropped_files.is_empty()) {
+            let dropped_files = ctx.input(|i| i.raw.dropped_files.clone());
+            for file in dropped_files {
+                self.copy_and_add_file(&file, SONG_FOLDER)
+                    .unwrap_or_else(|e| self.error_queue.push_back(e));
             }
         }
         // --- WIP ---
@@ -158,9 +164,8 @@ impl GlowApp {
 
                         // --- Actions ---
                         if title_label.clicked() {
-                            if let Err(error) = self.audio_engine.play_song(&song.path) {
-                                self.error_queue
-                                    .push_back(format!("Playback failed: {}", error));
+                            if let Err(e) = self.audio_engine.play_song(&song.path) {
+                                self.error_queue.push_back(format!("Playback failed: {e}"));
                             };
                         }
                         if artist_label.clicked() {
@@ -271,13 +276,15 @@ fn load_songs(target_folder: &str) -> std::io::Result<Vec<Song>> {
         let path = entry.path();
 
         // Uses conditional pattern matching to discard folder paths with no extension
-        if let Some(ext) = path.extension() {
-            // Case is ignored as file extensions are not case sensitive in windows
-            if ext.eq_ignore_ascii_case("mp3") {
-                // Conditional pattern matching in case any malformed Song structs return as None
-                if let Some(song) = Song::new(id, &path) {
-                    songs.push(song);
-                }
+        // Case is ignored as file extensions are not case sensitive in windows
+        if path
+            .extension()
+            .is_some_and(|p| p.eq_ignore_ascii_case("mp3"))
+            && !ALLOW_NON_MP3
+        {
+            // Conditional pattern matching in case any malformed Song structs return as None
+            if let Some(song) = Song::new(id, &path) {
+                songs.push(song);
             }
         }
     }

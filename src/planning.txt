@@ -13,4 +13,5 @@ Development Dependencies:
     -   Tracy for profiling
 
 Production Dependencies:
-    -   Anyhow for simplifying error handling
+    -   Anyhow for simplifying error handling ***
+        Needed in audio.rs

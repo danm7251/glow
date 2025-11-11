@@ -1,6 +1,6 @@
 #![warn(clippy::all)] // All standard lints
 #![warn(clippy::pedantic)] // Extra strict
-#![warn(clippy::nursery)] // Experimental
+//#![warn(clippy::nursery)] // Experimental
 //#![warn(clippy::cargo)] // Cargo/project layout checks
 //#![warn(clippy::restriction)]
 
