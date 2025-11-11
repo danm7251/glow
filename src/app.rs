@@ -1,12 +1,15 @@
 use eframe::{
     App as eframeApp, Frame as eframeFrame,
-    egui::{CentralPanel, Context as eguiContext, DroppedFile, Label, Sense, TextEdit, TopBottomPanel, Window},
+    egui::{
+        CentralPanel, Context as eguiContext, DroppedFile, Label, Sense, TextEdit, TopBottomPanel,
+        Window,
+    },
 };
 use id3::{Tag, TagLike};
 use native_dialog::{DialogBuilder, MessageLevel};
 use std::fs::{copy, read_dir};
-use std::{collections::VecDeque, time::Duration};
 use std::path::PathBuf;
+use std::{collections::VecDeque, time::Duration};
 
 use crate::{audio::AudioEngine, song::Song};
 
@@ -20,7 +23,7 @@ pub struct EditWindowBuffer {
 impl EditWindowBuffer {
     pub fn new(song: &Song) -> Self {
         Self {
-            song_id: song.song_id,
+            song_id: song.id,
             title: song.display_title.clone(),
             artist: song.display_artist.clone(),
         }
@@ -41,7 +44,7 @@ impl Default for GlowApp {
         let songs = match load_songs("songs") {
             Ok(list) => list,
             Err(error) => {
-                error_queue.push_back(format!("Failed to load songs: {}", error));
+                error_queue.push_back(format!("Failed to load songs: {error}"));
                 Vec::new()
             }
         };
@@ -65,31 +68,55 @@ impl eframeApp for GlowApp {
 impl GlowApp {
     /// Returns a mutable reference to a Song struct from it's ID
     fn get_song_mut(&mut self, song_id: usize) -> Option<&mut Song> {
-        self.songs.iter_mut().find(|s| s.song_id == song_id)
+        self.songs.iter_mut().find(|s| s.id == song_id)
     }
 
+    /// Returns a result after attempting to copy a slice of ``DroppedFile``s
+    /// into a desired folder, construct a song for each one and push it
+    /// to self.songs
+    fn copy_and_add_files(
+        &mut self,
+        files: &[DroppedFile], // Accepts a slice as to not limit to Vecs, not necessary
+        target_folder: &str,
+    ) -> Result<(), String> {
+        for file in files {
+            // Debug purposes
+            println!("Dropped in! {file:?}");
+
+            // Path uses as_ref() rather than & to obtain Option<&PathBuf> over &Option<PathBuf>
+            // Ok_or() transforms an Option to a Result to simplify error propogation
+            let path = file.path.as_ref().ok_or("Failed to get path from file")?;
+            let filename = path
+                .file_name()
+                .ok_or("Failed to get filename from path")?
+                .to_string_lossy();
+
+            let target: PathBuf = [target_folder, &filename].iter().collect();
+
+            // Map_err() is used to return the desired error type simply
+            copy(path, &target).map_err(|e| format!("Failed to copy: {e:?}"))?;
+
+            let song = Song::new(self.songs.len(), &target).ok_or("Failed to create song")?;
+            self.songs.push(song);
+
+            // Debug purposes
+            for (i, song) in self.songs.iter().enumerate() {
+                println!("n: {i} | id: {}", song.id);
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Main GUI loop
     fn render_ui(&mut self, ctx: &eguiContext) {
         // --- WIP --- (Ready for testing)
         let dropped_files = ctx.input(|i| i.raw.dropped_files.clone());
         if !dropped_files.is_empty() {
-            for file in dropped_files {
-                println!("Dropped in! {:?}", file);
-                if let Some(path) = file.path {
-                    if let Some(filename) = path.file_name() {
-                        let target: PathBuf = ["songs", &filename.to_string_lossy()].iter().collect();
-                        if let Err(e) = copy(&path, &target) {
-                            self.error_queue.push_back(format!("Failed to copy: {:?}", e));
-                        } else {
-                            self.songs.push(Song::new(self.songs.len(), &target).unwrap());
-                            for (i,song) in self.songs.iter().enumerate() {
-                                println!("n: {} | id: {}", i, song.song_id);
-                            }
-                        }
-                    } else {
-                        self.error_queue.push_back("Failed to get filename".to_string());
-                    }
-                } else {
-                    self.error_queue.push_back("Failed to get path".to_string());
+            match self.copy_and_add_files(&dropped_files, "songs") {
+                Ok(()) => (),
+                Err(e) => {
+                    self.error_queue.push_back(e);
                 }
             }
         }
@@ -97,16 +124,14 @@ impl GlowApp {
 
         TopBottomPanel::bottom("playback_control").show(ctx, |ui| {
             ui.horizontal(|ui| {
-                match self.audio_engine.is_playing {
-                    false => {
-                        if ui.button("Play").clicked() {
-                            self.audio_engine.resume();
-                        }
+                #[allow(clippy::collapsible_else_if)] // Readability
+                if self.audio_engine.is_playing {
+                    if ui.button("Pause").clicked() {
+                        self.audio_engine.pause();
                     }
-                    true => {
-                        if ui.button("Pause").clicked() {
-                            self.audio_engine.pause();
-                        }
+                } else {
+                    if ui.button("Play").clicked() {
+                        self.audio_engine.resume();
                     }
                 }
 
@@ -201,11 +226,11 @@ impl GlowApp {
             ui.horizontal(|ui| {
                 if ui.button("Save").clicked() {
                     if let Some(song) = self.get_song_mut(buffer.song_id) {
-                        song.display_title = buffer.title.clone();
-                        song.display_artist = buffer.artist.clone();
+                        song.display_title.clone_from(&buffer.title);
+                        song.display_artist.clone_from(&buffer.artist);
 
                         if let Err(e) = save_metadata(song) {
-                            error = Some(format!("Failed to save metadata: {}", e));
+                            error = Some(format!("Failed to save metadata: {e}"));
                         }
                     } else {
                         error = Some("Failed to get &mut song by id".to_string());

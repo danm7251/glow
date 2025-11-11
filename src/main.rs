@@ -1,3 +1,9 @@
+#![warn(clippy::all)] // All standard lints
+#![warn(clippy::pedantic)] // Extra strict
+#![warn(clippy::nursery)] // Experimental
+//#![warn(clippy::cargo)] // Cargo/project layout checks
+//#![warn(clippy::restriction)]
+
 mod app;
 mod audio;
 mod song;
@@ -7,9 +13,7 @@ use eframe::{
 };
 
 fn main() -> eframeResult {
-    let native_options = eframeNativeOptions {
-        ..Default::default()
-    };
+    let native_options = eframeNativeOptions::default();
 
     eframe_run_native(
         "glow",

@@ -1,15 +1,15 @@
-use std::path::PathBuf;
 use id3::{Tag, TagLike};
+use std::path::PathBuf;
 
 pub struct Song {
-    pub song_id: usize,
+    pub id: usize,
     pub path: PathBuf,
     pub display_title: String,
     pub display_artist: String,
 }
 
 impl Song {
-    pub fn new(song_id: usize, path: &PathBuf) -> Option<Self> {
+    pub fn new(id: usize, path: &PathBuf) -> Option<Self> {
         let filename = path.file_name()?.to_string_lossy().into_owned();
         let tag_result = Tag::read_from_path(path);
 
@@ -24,7 +24,7 @@ impl Song {
         };
 
         Some(Self {
-            song_id,
+            id,
             path: path.clone(),
             display_title,
             display_artist,
