@@ -1,8 +1,8 @@
 use eframe::{
     App as eframeApp, Frame as eframeFrame,
     egui::{
-        CentralPanel, Context as eguiContext, DroppedFile, Label, Sense, TextEdit, TopBottomPanel,
-        Window,
+        Button, CentralPanel, Context as eguiContext, DroppedFile, Label, Sense, TextEdit,
+        TopBottomPanel, Window,
     },
 };
 use id3::{Tag, TagLike};
@@ -13,10 +13,10 @@ use std::{collections::VecDeque, time::Duration};
 
 use crate::{audio::AudioEngine, song::Song};
 
-// Temporary hardcoded filepath
+// Temporary hardcoded filepath, will be upgraded once permanent config is implemented
 const SONG_FOLDER: &str = "test";
 // Test flags
-const ALLOW_NON_MP3: bool = true;
+const ALLOW_NON_MP3: bool = false;
 
 // Temporary state for song metadata editing
 pub struct EditWindowBuffer {
@@ -76,21 +76,17 @@ impl GlowApp {
         self.songs.iter_mut().find(|s| s.id == song_id)
     }
 
-    /// Returns a result after attempting to copy a slice of ``DroppedFile``s
+    /// Returns a result after attempting to copy a ``DroppedFile``
     /// into a desired folder, construct a song for each one and push it
     /// to self.songs
     fn copy_and_add_file(&mut self, file: &DroppedFile, target_folder: &str) -> Result<(), String> {
-        // Debug purposes
-        println!("Dropped in! {file:?}");
-
         // Path uses as_ref() rather than & to obtain Option<&PathBuf> over &Option<PathBuf>
         // Ok_or() transforms an Option to a Result to simplify error propogation
         let path = file.path.as_ref().ok_or("Failed to get path from file")?;
 
         if !path
             .extension()
-            .is_some_and(|p| p.eq_ignore_ascii_case("mp3"))
-            && !ALLOW_NON_MP3
+            .is_some_and(|p| p.eq_ignore_ascii_case("mp3") || ALLOW_NON_MP3)
         {
             return Err(format!("Skipped non-mp3 file: {}", path.to_string_lossy()));
         }
@@ -107,11 +103,6 @@ impl GlowApp {
 
         let song = Song::new(self.songs.len(), &target).ok_or("Failed to create song")?;
         self.songs.push(song);
-
-        // Debug purposes
-        for (i, song) in self.songs.iter().enumerate() {
-            println!("n: {i} | id: {}", song.id);
-        }
 
         Ok(())
     }
@@ -229,7 +220,13 @@ impl GlowApp {
 
             // --- Action buttons ---
             ui.horizontal(|ui| {
-                if ui.button("Save").clicked() {
+                let mut enable_save = true;
+
+                if buffer.title.is_empty() || buffer.artist.is_empty() {
+                    enable_save = false;
+                }
+
+                if ui.add_enabled(enable_save, Button::new("Save")).clicked() {
                     if let Some(song) = self.get_song_mut(buffer.song_id) {
                         song.display_title.clone_from(&buffer.title);
                         song.display_artist.clone_from(&buffer.artist);
@@ -248,6 +245,7 @@ impl GlowApp {
             });
         });
 
+        // Wait to return the error
         if let Some(e) = error {
             return Err(e);
         }
@@ -271,19 +269,18 @@ fn load_songs(target_folder: &str) -> std::io::Result<Vec<Song>> {
     let mut songs = Vec::new();
     let entries = read_dir(target_folder)?;
 
-    // Uses flatten to discard any failed entries and enumerate to allow the for loop
-    for (id, entry) in entries.flatten().enumerate() {
+    // Uses flatten to discard any failed entries
+    for entry in entries.flatten() {
         let path = entry.path();
 
         // Uses conditional pattern matching to discard folder paths with no extension
         // Case is ignored as file extensions are not case sensitive in windows
         if path
             .extension()
-            .is_some_and(|p| p.eq_ignore_ascii_case("mp3"))
-            && !ALLOW_NON_MP3
+            .is_some_and(|p| p.eq_ignore_ascii_case("mp3") || ALLOW_NON_MP3)
         {
             // Conditional pattern matching in case any malformed Song structs return as None
-            if let Some(song) = Song::new(id, &path) {
+            if let Some(song) = Song::new(songs.len(), &path) {
                 songs.push(song);
             }
         }
