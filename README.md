@@ -8,7 +8,8 @@ A lightweight Rust-based music player built with egui and eframe.
 - [x] Drag and drop support
 - [ ] Seek bar
 - [ ] Volume control
+- [ ] Queuing and playlists
+- [ ] Display track art
 - [ ] Themes
 - [ ] Persistent user settings
-- [ ] Queuing and playlists
 - [ ] Multi-format support
