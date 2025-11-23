@@ -1,5 +1,5 @@
 use id3::{Tag, TagLike};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub struct Song {
     pub id: usize,
@@ -9,6 +9,7 @@ pub struct Song {
 }
 
 impl Song {
+    // Update to return Result
     pub fn new(id: usize, path: &PathBuf) -> Option<Self> {
         let filename = path.file_name()?.to_string_lossy().into_owned();
         let tag_result = Tag::read_from_path(path);
@@ -29,5 +30,29 @@ impl Song {
             display_title,
             display_artist,
         })
+    }
+
+    pub fn id(&self) -> usize {
+        self.id
+    }
+
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    pub fn title(&self) -> &str {
+        &self.display_title
+    }
+
+    pub fn artist(&self) -> &str {
+        &self.display_artist
+    }
+
+    pub fn set_title(&mut self, title: impl Into<String>) {
+        self.display_title = title.into();
+    }
+
+    pub fn set_artist(&mut self, artist: impl Into<String>) {
+        self.display_artist = artist.into();
     }
 }

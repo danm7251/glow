@@ -11,7 +11,7 @@ use std::fs::{copy, read_dir};
 use std::path::PathBuf;
 use std::{collections::VecDeque, time::Duration};
 
-use crate::{audio::AudioEngine, song::Song};
+use crate::{audio::AudioEngine, library::Library, song::Song};
 
 // Temporary hardcoded filepath, will be upgraded once permanent config is implemented
 const SONG_FOLDER: &str = "test";
@@ -36,6 +36,7 @@ impl EditWindowBuffer {
 }
 
 pub struct GlowApp {
+    library: Library, // To replace songs when complete
     songs: Vec<Song>,
     audio_engine: AudioEngine,
     // A VecDeque is used for FIFO action
@@ -55,6 +56,8 @@ impl Default for GlowApp {
         };
 
         Self {
+            // Logic to fallback to empty Library to replace this
+            library: Library::empty(SONG_FOLDER, ALLOW_NON_MP3),
             songs,
             audio_engine: AudioEngine::new(),
             error_queue,

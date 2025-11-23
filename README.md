@@ -1,11 +1,11 @@
-# Glow 🎶
+# Glow
 A lightweight Rust-based music player built with egui and eframe.
 
-## ✨ Features (WIP)
+## Features (WIP)
 - [x] Display local songs with title and artist
 - [x] Playback controls
 - [x] Edit and save metadata
-- [ ] Drag and drop support
+- [x] Drag and drop support
 - [ ] Seek bar
 - [ ] Volume control
 - [ ] Themes

@@ -6,6 +6,7 @@
 
 mod app;
 mod audio;
+mod library;
 mod song;
 
 use eframe::{

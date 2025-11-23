@@ -1,9 +1,11 @@
 /target/
 /test/
+/songs_test/
 songs/*
 !songs/.gitkeep
 **/*.rs.bk
 *.pdb
+*.txt
 .vscode/
 !.vscode/settings.json
 !.vscode/extensions.json
