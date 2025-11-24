@@ -1,46 +1,24 @@
 use eframe::{
     App as eframeApp, Frame as eframeFrame,
-    egui::{
-        Button, CentralPanel, Context as eguiContext, Label, Sense, TextEdit, TopBottomPanel,
-        Window,
-    },
+    egui::{CentralPanel, Context as eguiContext, Label, Sense, TopBottomPanel},
 };
 use native_dialog::{DialogBuilder, MessageLevel};
 use std::{collections::VecDeque, time::Duration};
 
-use crate::{
-    audio::AudioEngine,
-    library::{Library, Song, write_song_metadata},
-};
+pub mod edit_window;
+
+use crate::{app::edit_window::EditWindow, audio::AudioEngine, library::Library};
 
 // Temporary hardcoded filepath, will be upgraded once permanent config is implemented
 const SONG_FOLDER: &str = "test";
 // Test flags
 const ALLOW_NON_MP3: bool = false;
 
-// Temporary state for song metadata editing
-struct EditWindowBuffer {
-    // TODO: Seperate and export as module
-    song_id: usize,
-    title: String,
-    artist: String,
-}
-
-impl EditWindowBuffer {
-    fn new(song: &Song) -> Self {
-        Self {
-            song_id: song.id(),
-            title: song.title().to_owned(),
-            artist: song.artist().to_owned(),
-        }
-    }
-}
-
 pub struct GlowApp {
     library: Library,
     audio_engine: AudioEngine,
     error_queue: VecDeque<String>, // A VecDeque is used for FIFO action
-    edit_window: Option<EditWindowBuffer>,
+    edit_window: Option<EditWindow>,
 }
 
 impl Default for GlowApp {
@@ -130,7 +108,7 @@ impl GlowApp {
                         }
                         title_label.context_menu(|ui| {
                             if ui.button("Edit").clicked() {
-                                self.edit_window = Some(EditWindowBuffer::new(song));
+                                self.edit_window = Some(EditWindow::new(song));
                             }
                         });
                     });
@@ -139,6 +117,7 @@ impl GlowApp {
         });
 
         // --- Error messages ---
+        // TODO: Centralise string conversion
         if let Some(error) = self.error_queue.pop_front() {
             std::thread::spawn(move || {
                 let _ = DialogBuilder::message()
@@ -151,72 +130,17 @@ impl GlowApp {
         }
 
         // --- Metadata editing window ---
-        // If a buffer exists it is taken and rendered before being returned if the window has not been closed
-        if let Some(buffer) = self.edit_window.take() {
-            match self.render_edit_window(ctx, buffer) {
-                Ok(Some(buffer)) => self.edit_window = Some(buffer),
-                Ok(None) => (),
-                Err(e) => self.error_queue.push_back(e),
+        if let Some(edit_window) = &mut self.edit_window {
+            match edit_window.show(&mut self.library, ctx) {
+                Ok(()) => (),
+                Err(e) => self.error_queue.push_back(e.to_string()),
+            }
+
+            if !edit_window.open() {
+                self.edit_window = None;
             }
         }
 
         ctx.request_repaint_after(Duration::from_millis(100));
-    }
-
-    /// Renders an edit window by taking an `EditWindowBuffer` and returns it for re-use if the window is open
-    fn render_edit_window(
-        &mut self,
-        ctx: &eguiContext,
-        mut buffer: EditWindowBuffer,
-    ) -> Result<Option<EditWindowBuffer>, String> {
-        // TODO: Refactor to use anyhow
-        let mut closed = false;
-        let mut error: Option<String> = None;
-
-        Window::new("Edit metadata").show(ctx, |ui| {
-            // --- Input fields ---
-            ui.horizontal(|ui| {
-                ui.label("Title");
-                ui.add(TextEdit::singleline(&mut buffer.title));
-            });
-
-            ui.horizontal(|ui| {
-                ui.label("Artist");
-                ui.add(TextEdit::singleline(&mut buffer.artist));
-            });
-
-            // --- Action buttons ---
-            ui.horizontal(|ui| {
-                let mut enable_save = true;
-
-                if buffer.title.is_empty() || buffer.artist.is_empty() {
-                    enable_save = false;
-                }
-
-                if ui.add_enabled(enable_save, Button::new("Save")).clicked() {
-                    if let Some(song) = self.library.song_mut(buffer.song_id) {
-                        song.set_title(&buffer.title);
-                        song.set_artist(&buffer.artist);
-
-                        if let Err(e) = write_song_metadata(song) {
-                            error = Some(format!("Failed to save metadata: {e}"));
-                        }
-                    } else {
-                        error = Some("Failed to get &mut song by id".to_string());
-                    }
-                    closed = true;
-                }
-                if ui.button("Close").clicked() {
-                    closed = true;
-                }
-            });
-        });
-
-        // Wait to return the error
-        if let Some(e) = error {
-            return Err(e);
-        }
-        // As calling code takes the buffer it needs to be returned if we want it to persist
-        if closed { Ok(None) } else { Ok(Some(buffer)) }
     }
 }
