@@ -87,8 +87,8 @@ impl Library {
     }
 }
 
-/// Returns the Result of writing an ID3v23 tag to a Song's path, assumes file has ID3v23 tag
-fn write_song_metadata(song: &Song) -> Result<()> {
+/// Returns the Result of writing an id3v23 tag to a Song's path, assumes file has id3v23 tag
+pub fn write_song_metadata(song: &Song) -> Result<()> {
     let path = song.path();
 
     let mut tag = Tag::read_from_path(path).with_context(|| {
