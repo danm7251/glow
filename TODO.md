@@ -4,14 +4,16 @@
 * [src/app.rs:131](src/app.rs#L131): filter songs by artist
 * [src/app.rs:174](src/app.rs#L174): Refactor to use anyhow
 
-## src/library.rs
-* [src/library.rs:52](src/library.rs#L52): Accept folders
-* [src/library.rs:74](src/library.rs#L74): Refactor once Song -> Result<Song>, Consider what to do with the file copy
-* [src/library.rs:133](src/library.rs#L133): Refactor once Song -> Result<Song>
+## src/audio.rs
+* [src/audio.rs:7](src/audio.rs#L7): Review code, add minimal Doc
+* [src/audio.rs:29](src/audio.rs#L29): Change return type to anyhow::Result
 
-## src/song.rs
-* [src/song.rs:4](src/song.rs#L4): Write minimal documentation
-* [src/song.rs:5](src/song.rs#L5): Change all fields to private
-* [src/song.rs:6](src/song.rs#L6): Consider renaming fields
-* [src/song.rs:17](src/song.rs#L17): Convert return type to Result
-* [src/song.rs:18](src/song.rs#L18): Review and improve function, for example the type of parameter path
+## src/library/mod.rs
+* [src/library/mod.rs:53](src/library/mod.rs#L53): Accept folders
+* [src/library/mod.rs:75](src/library/mod.rs#L75): Refactor once Song -> Result<Song>, Consider what to do with the file copy
+* [src/library/mod.rs:134](src/library/mod.rs#L134): Refactor once Song -> Result<Song>
+
+## src/library/song.rs
+* [src/library/song.rs:4](src/library/song.rs#L4): Write minimal documentation
+* [src/library/song.rs:15](src/library/song.rs#L15): Convert return type to Result
+* [src/library/song.rs:16](src/library/song.rs#L16): Review and improve function, for example the type of parameter path

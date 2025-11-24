@@ -29,9 +29,9 @@ struct EditWindowBuffer {
 impl EditWindowBuffer {
     fn new(song: &Song) -> Self {
         Self {
-            song_id: song.id,
-            title: song.display_title.clone(),
-            artist: song.display_artist.clone(),
+            song_id: song.id(),
+            title: song.title().to_owned(),
+            artist: song.artist().to_owned(),
         }
     }
 }
@@ -114,16 +114,14 @@ impl GlowApp {
                 for song in self.library.songs() {
                     ui.horizontal(|ui| {
                         // --- Labels ---
-                        let title_label =
-                            ui.add(Label::new(&song.display_title).sense(Sense::click()));
+                        let title_label = ui.add(Label::new(song.title()).sense(Sense::click()));
                         ui.label("by");
-                        let artist_label =
-                            ui.add(Label::new(&song.display_artist).sense(Sense::click()));
+                        let artist_label = ui.add(Label::new(song.artist()).sense(Sense::click()));
 
                         // --- Actions ---
                         #[allow(clippy::collapsible_if, reason = "Readability")]
                         if title_label.clicked() {
-                            if let Err(e) = self.audio_engine.play_song(&song.path) {
+                            if let Err(e) = self.audio_engine.play_song(song.path()) {
                                 self.error_queue.push_back(format!("Playback failed: {e}"));
                             }
                         }
@@ -197,8 +195,8 @@ impl GlowApp {
 
                 if ui.add_enabled(enable_save, Button::new("Save")).clicked() {
                     if let Some(song) = self.library.song_mut(buffer.song_id) {
-                        song.display_title.clone_from(&buffer.title);
-                        song.display_artist.clone_from(&buffer.artist);
+                        song.set_title(&buffer.title);
+                        song.set_artist(&buffer.artist);
 
                         if let Err(e) = write_song_metadata(song) {
                             error = Some(format!("Failed to save metadata: {e}"));

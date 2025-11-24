@@ -1,6 +1,6 @@
 use rodio::{Decoder, OutputStream, OutputStreamBuilder, Sink};
 use std::fs::File;
-use std::path::PathBuf;
+use std::path::Path;
 
 // May need stream_handle later
 // When app is closed rodio prints to console about the outputstream being dropped
@@ -24,7 +24,7 @@ impl AudioEngine {
     }
 
     // Returns Box error type as DecoderError and FileError are incompatible
-    pub fn play_song(&mut self, path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn play_song(&mut self, path: &Path) -> Result<(), Box<dyn std::error::Error>> {
         // Opening and decoding songs each time could impact performance, try caching?
 
         let file = File::open(path)?;
