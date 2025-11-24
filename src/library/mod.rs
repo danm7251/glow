@@ -72,13 +72,12 @@ impl Library {
             format!("Failed to copy {} to {}", path.display(), target.display())
         })?;
 
-        // TODO: Refactor once Song -> Result<Song>,
-        //       Consider what to do with the file copy
+        // TODO: Consider what to do with the file copy
         match Song::new(self.songs.len(), &target) {
-            Some(song) => self.songs.push(song),
-            None => {
-                return Err(anyhow!(
-                    "Failed to instantiate Song from file: {}\nError occurred in import_path()",
+            Ok(song) => self.songs.push(song),
+            Err(e) => {
+                return Err(e).context(format!(
+                    "Failed to create Song from path: {}\nError occurred in import_path()",
                     target.display()
                 ));
             }
@@ -131,9 +130,14 @@ fn load_songs(folder: &Path, allow_non_mp3: bool) -> Result<Vec<Song>> {
             .extension()
             .is_some_and(|p| p.eq_ignore_ascii_case("mp3") || allow_non_mp3)
         {
-            // TODO: Refactor once Song -> Result<Song>
-            if let Some(song) = Song::new(songs.len(), &path) {
-                songs.push(song);
+            match Song::new(songs.len(), &path) {
+                Ok(song) => songs.push(song),
+                Err(e) => {
+                    return Err(e).context(format!(
+                        "Failed to create Song from path: {}\nError occurred in load_songs()",
+                        path.display()
+                    ));
+                }
             }
         }
     }
