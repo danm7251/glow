@@ -1,4 +1,9 @@
 # TODO
+## src/app.rs
+* [src/app.rs:89](src/app.rs#L89): Fix bug when pausing and using label to play
+* [src/app.rs:131](src/app.rs#L131): filter songs by artist
+* [src/app.rs:174](src/app.rs#L174): Refactor to use anyhow
+
 ## src/library.rs
 * [src/library.rs:52](src/library.rs#L52): Accept folders
 * [src/library.rs:74](src/library.rs#L74): Refactor once Song -> Result<Song>, Consider what to do with the file copy

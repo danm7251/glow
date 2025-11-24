@@ -1,6 +1,10 @@
 use id3::{Tag, TagLike};
 use std::path::{Path, PathBuf};
 
+// TODO: Write minimal documentation
+// TODO: Change all fields to private
+// TODO: Consider renaming fields
+// TODOL Prototype an enum and field to track the status of the file
 pub struct Song {
     pub id: usize,
     pub path: PathBuf,
@@ -9,8 +13,9 @@ pub struct Song {
 }
 
 impl Song {
-    // Update to return Result
     pub fn new(id: usize, path: &PathBuf) -> Option<Self> {
+        // TODO: Convert return type to Result
+        // TODO: Review and improve function, for example the type of parameter path
         let filename = path.file_name()?.to_string_lossy().into_owned();
         let tag_result = Tag::read_from_path(path);
 
