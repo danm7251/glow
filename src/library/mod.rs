@@ -5,7 +5,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::song::Song;
+pub mod song;
+pub use song::Song;
 
 pub struct Library {
     songs: Vec<Song>,

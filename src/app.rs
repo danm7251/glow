@@ -10,8 +10,7 @@ use std::{collections::VecDeque, time::Duration};
 
 use crate::{
     audio::AudioEngine,
-    library::{Library, write_song_metadata},
-    song::Song,
+    library::{Library, Song, write_song_metadata},
 };
 
 // Temporary hardcoded filepath, will be upgraded once permanent config is implemented
@@ -21,6 +20,7 @@ const ALLOW_NON_MP3: bool = false;
 
 // Temporary state for song metadata editing
 struct EditWindowBuffer {
+    // TODO: Seperate and export as module
     song_id: usize,
     title: String,
     artist: String,
