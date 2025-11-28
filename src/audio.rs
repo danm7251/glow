@@ -1,3 +1,4 @@
+use anyhow::{Result, anyhow};
 use rodio::{Decoder, OutputStream, OutputStreamBuilder, Sink};
 use std::fs::File;
 use std::path::Path;
@@ -9,6 +10,7 @@ pub struct AudioEngine {
     pub is_playing: bool,
     _stream_handle: OutputStream,
     sink: Sink,
+    pub volume: u8,
 }
 
 impl AudioEngine {
@@ -21,14 +23,11 @@ impl AudioEngine {
             is_playing: false,
             _stream_handle: stream_handle,
             sink,
+            volume: 100,
         }
     }
 
-    // Returns Box error type as DecoderError and FileError are incompatible
-    pub fn play_song(&mut self, path: &Path) -> Result<(), Box<dyn std::error::Error>> {
-        // TODO: Change return type to anyhow::Result
-        // Opening and decoding songs each time could impact performance, try caching?
-
+    pub fn play_song(&mut self, path: &Path) -> Result<()> {
         let file = File::open(path)?;
         let source = Decoder::try_from(file)?;
 
@@ -58,5 +57,18 @@ impl AudioEngine {
         if self.is_playing && self.sink.empty() {
             self.is_playing = false;
         }
+    }
+
+    pub fn set_volume(&self) -> Result<()> {
+        match f32::from(self.volume) * 0.01 {
+            n @ 0.0..=1.0 => self.sink.set_volume(n),
+            n => {
+                return Err(anyhow!(
+                    "Invalid value, {n}, passed to AudioEngine::set_volume()"
+                ));
+            }
+        }
+
+        Ok(())
     }
 }

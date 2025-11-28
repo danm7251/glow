@@ -1,6 +1,9 @@
 use eframe::{
     App as eframeApp, Frame as eframeFrame,
-    egui::{CentralPanel, Context as eguiContext, Label, Sense, TopBottomPanel},
+    egui::{
+        CentralPanel, Context as eguiContext, Label, Layout, ProgressBar, Sense, Slider,
+        TopBottomPanel,
+    },
 };
 use native_dialog::{DialogBuilder, MessageLevel};
 use std::{collections::VecDeque, time::Duration};
@@ -24,6 +27,7 @@ pub struct GlowApp {
 impl Default for GlowApp {
     fn default() -> Self {
         let mut error_queue = VecDeque::new();
+        // TODO: Make loading screen with spinner or progress bar
         let library = match Library::new(SONG_FOLDER, ALLOW_NON_MP3) {
             Ok(lib) => lib,
             Err(e) => {
@@ -80,6 +84,18 @@ impl GlowApp {
                 if ui.button("Stop").clicked() {
                     self.audio_engine.stop();
                 }
+
+                // TODO: Review when I've slept properly
+                ui.with_layout(Layout::right_to_left(eframe::egui::Align::Max), |ui| {
+                    let volume = ui.add(Slider::new(&mut self.audio_engine.volume, 0..=100));
+
+                    #[allow(clippy::collapsible_if, reason = "Readability")]
+                    if volume.changed() {
+                        if let Err(e) = self.audio_engine.set_volume() {
+                            self.error_queue.push_back(e.to_string());
+                        }
+                    }
+                });
             });
         });
 
