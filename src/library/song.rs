@@ -16,7 +16,7 @@ impl Song {
         let filename_os = path
             .file_name()
             .with_context(|| format!("Failed to get filename at {}", path.display()))?;
-        let tag_result = Tag::read_from_path(filename_os);
+        let tag_result = Tag::read_from_path(path);
 
         let filename = filename_os.to_string_lossy().into_owned();
 
