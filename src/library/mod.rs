@@ -1,8 +1,10 @@
 use anyhow::{Context, Result, anyhow};
 use id3::{Tag, TagLike};
+use rodio::{Decoder, Source};
 use std::{
-    fs::{copy, read_dir},
+    fs::{File, copy, read_dir},
     path::{Path, PathBuf},
+    time::Duration,
 };
 
 pub mod song;
@@ -73,7 +75,10 @@ impl Library {
         })?;
 
         // TODO: Consider what to do with the file copy
-        match Song::new(self.songs.len(), &target) {
+        // TODO: Wrap song creation in a function
+        // TODO: REVIEW
+        let duration = try_duration(&target)?;
+        match Song::new(self.songs.len(), &target, duration) {
             Ok(song) => self.songs.push(song),
             Err(e) => {
                 return Err(e).context(format!(
@@ -130,7 +135,9 @@ fn load_songs(folder: &Path, allow_non_mp3: bool) -> Result<Vec<Song>> {
             .extension()
             .is_some_and(|p| p.eq_ignore_ascii_case("mp3") || allow_non_mp3)
         {
-            match Song::new(songs.len(), &path) {
+            // TODO: REVIEW
+            let duration = try_duration(&path)?;
+            match Song::new(songs.len(), &path, duration) {
                 Ok(song) => songs.push(song),
                 Err(e) => {
                     return Err(e).context(format!(
@@ -143,4 +150,14 @@ fn load_songs(folder: &Path, allow_non_mp3: bool) -> Result<Vec<Song>> {
     }
 
     Ok(songs)
+}
+
+// TODO: REVIEW AND DOC
+fn try_duration(path: &Path) -> Result<Duration> {
+    let file = File::open(path)?;
+    let source = Decoder::try_from(file)?;
+    match source.total_duration() {
+        Some(d) => Ok(d),
+        None => Err(anyhow!("Fuck")),
+    }
 }

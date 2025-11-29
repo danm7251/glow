@@ -1,8 +1,8 @@
 use eframe::{
     App as eframeApp, Frame as eframeFrame,
     egui::{
-        CentralPanel, Context as eguiContext, Frame, Label, Layout, Margin, ProgressBar,
-        ScrollArea, Sense, SidePanel, Slider, TopBottomPanel,
+        CentralPanel, Context as eguiContext, Frame, Label, Layout, Margin, ScrollArea, Sense,
+        SidePanel, Slider, TopBottomPanel, global_theme_preference_switch,
     },
 };
 use native_dialog::{DialogBuilder, MessageLevel};
@@ -14,7 +14,7 @@ use crate::{app::edit_window::EditWindow, audio::AudioEngine, library::Library};
 
 // Temporary hardcoded filepath, will be upgraded once permanent config is implemented
 const SONG_FOLDER: &str = "test";
-// Temporary visual settings
+// Visual settings
 const STD_MARGIN: i8 = 10;
 const CONTROL_MARGIN: i8 = 5;
 // Test flags
@@ -90,8 +90,9 @@ impl GlowApp {
                         self.audio_engine.stop();
                     }
 
-                    // TODO: Review when I've slept properly
+                    // TODO: REVIEW
                     ui.with_layout(Layout::right_to_left(eframe::egui::Align::Max), |ui| {
+                        global_theme_preference_switch(ui);
                         let volume = ui.add(Slider::new(self.audio_engine.mut_volume(), 0..=100));
                         if volume.changed() {
                             self.audio_engine.set_volume();
@@ -100,6 +101,7 @@ impl GlowApp {
                 });
             });
 
+        // TODO: REVIEW
         SidePanel::left("Playlists")
             .frame(Frame::side_top_panel(&ctx.style()).inner_margin(Margin::same(STD_MARGIN)))
             .show(ctx, |ui| {
@@ -112,6 +114,8 @@ impl GlowApp {
             .show(ctx, |ui| {
                 ui.heading("Songs");
                 ui.separator();
+                // TODO: REVIEW
+                // TODO: Covers labels
                 ScrollArea::vertical().show(ui, |ui| {
                     if self.library.songs().is_empty() {
                         ui.label("No songs found...");
@@ -124,6 +128,9 @@ impl GlowApp {
                                 ui.label("by");
                                 let artist_label =
                                     ui.add(Label::new(song.artist()).sense(Sense::click()));
+                                // TODO: REVIEW
+                                // Maybe display red dot if no duration
+                                ui.label(song.duration_as_str());
 
                                 // --- Actions ---
                                 #[allow(clippy::collapsible_if, reason = "Readability")]

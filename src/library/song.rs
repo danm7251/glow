@@ -1,18 +1,24 @@
 use anyhow::{Context, Result};
 use id3::{Tag, TagLike};
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    time::Duration,
+};
 
-// TODO: Prototype an enum and field to track the status of the file
+// TODO: Prototype validity enum
+
 pub struct Song {
     id: usize,
     path: PathBuf,
     title: String,
     artist: String,
+    duration: Duration,
 }
 
 impl Song {
+    // TODO: REVIEW AND DOC
     /// Returns a Result containing a Song
-    pub fn new(id: usize, path: &Path) -> Result<Self> {
+    pub fn new(id: usize, path: &Path, duration: Duration) -> Result<Self> {
         let filename_os = path
             .file_name()
             .with_context(|| format!("Failed to get filename at {}", path.display()))?;
@@ -35,6 +41,7 @@ impl Song {
             path: path.to_path_buf(),
             title,
             artist,
+            duration,
         })
     }
 
@@ -56,6 +63,17 @@ impl Song {
     /// Returns the artist of a song
     pub fn artist(&self) -> &str {
         &self.artist
+    }
+
+    // TODO: REVIEW AND DOC
+    pub fn duration_as_str(&self) -> String {
+        let d = self.duration.as_secs();
+        let m = d / 60;
+        let s: String = match d % 60 {
+            n @ 0..=9 => "0".to_owned() + &n.to_string(),
+            n => n.to_string(),
+        };
+        format!("{m}:{s}")
     }
 
     /// Sets the title of a song

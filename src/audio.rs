@@ -27,6 +27,7 @@ impl AudioEngine {
         }
     }
 
+    // TODO: play_song() does not work if player is paused
     pub fn play_song(&mut self, path: &Path) -> Result<()> {
         let file = File::open(path)?;
         let source = Decoder::try_from(file)?;
