@@ -76,9 +76,7 @@ impl Library {
 
         // TODO: Consider what to do with the file copy
         // TODO: Wrap song creation in a function
-        // TODO: REVIEW
-        let duration = try_duration(&target)?;
-        match Song::new(self.songs.len(), &target, duration) {
+        match Song::new(self.songs.len(), &target, try_duration(&target)) {
             Ok(song) => self.songs.push(song),
             Err(e) => {
                 return Err(e).context(format!(
@@ -135,9 +133,7 @@ fn load_songs(folder: &Path, allow_non_mp3: bool) -> Result<Vec<Song>> {
             .extension()
             .is_some_and(|p| p.eq_ignore_ascii_case("mp3") || allow_non_mp3)
         {
-            // TODO: REVIEW
-            let duration = try_duration(&path)?;
-            match Song::new(songs.len(), &path, duration) {
+            match Song::new(songs.len(), &path, try_duration(&path)) {
                 Ok(song) => songs.push(song),
                 Err(e) => {
                     return Err(e).context(format!(
@@ -152,12 +148,10 @@ fn load_songs(folder: &Path, allow_non_mp3: bool) -> Result<Vec<Song>> {
     Ok(songs)
 }
 
-// TODO: REVIEW AND DOC
-fn try_duration(path: &Path) -> Result<Duration> {
-    let file = File::open(path)?;
-    let source = Decoder::try_from(file)?;
-    match source.total_duration() {
-        Some(d) => Ok(d),
-        None => Err(anyhow!("Fuck")),
-    }
+/// Returns a duration calculated by Rodio if it exists
+fn try_duration(path: &Path) -> Option<Duration> {
+    // TODO: Stop silent fails caused by ok()
+    let file = File::open(path).ok()?;
+    let source = Decoder::try_from(file).ok()?;
+    source.total_duration()
 }

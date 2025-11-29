@@ -128,9 +128,7 @@ impl GlowApp {
                                 ui.label("by");
                                 let artist_label =
                                     ui.add(Label::new(song.artist()).sense(Sense::click()));
-                                // TODO: REVIEW
-                                // Maybe display red dot if no duration
-                                ui.label(song.duration_as_str());
+                                ui.label(song.formatted_duration());
 
                                 // --- Actions ---
                                 #[allow(clippy::collapsible_if, reason = "Readability")]

@@ -12,13 +12,13 @@ pub struct Song {
     path: PathBuf,
     title: String,
     artist: String,
-    duration: Duration,
+    duration: Option<Duration>,
 }
 
 impl Song {
     // TODO: REVIEW AND DOC
     /// Returns a Result containing a Song
-    pub fn new(id: usize, path: &Path, duration: Duration) -> Result<Self> {
+    pub fn new(id: usize, path: &Path, duration: Option<Duration>) -> Result<Self> {
         let filename_os = path
             .file_name()
             .with_context(|| format!("Failed to get filename at {}", path.display()))?;
@@ -65,15 +65,17 @@ impl Song {
         &self.artist
     }
 
-    // TODO: REVIEW AND DOC
-    pub fn duration_as_str(&self) -> String {
-        let d = self.duration.as_secs();
-        let m = d / 60;
-        let s: String = match d % 60 {
-            n @ 0..=9 => "0".to_owned() + &n.to_string(),
-            n => n.to_string(),
-        };
-        format!("{m}:{s}")
+    /// Returns the duration formatted as minutes:seconds
+    pub fn formatted_duration(&self) -> String {
+        match self.duration {
+            Some(d) => {
+                let seconds = d.as_secs();
+                let minutes = seconds / 60;
+                let remainder = seconds % 60;
+                format!("{minutes}:{remainder:02}")
+            }
+            None => "--:--".to_string(),
+        }
     }
 
     /// Sets the title of a song

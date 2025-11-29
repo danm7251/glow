@@ -6,9 +6,8 @@
 * [src/app/mod.rs:104](src/app/mod.rs#L104): REVIEW
 * [src/app/mod.rs:117](src/app/mod.rs#L117): REVIEW
 * [src/app/mod.rs:118](src/app/mod.rs#L118): Covers labels
-* [src/app/mod.rs:131](src/app/mod.rs#L131): REVIEW
-* [src/app/mod.rs:142](src/app/mod.rs#L142): filter songs by artist
-* [src/app/mod.rs:156](src/app/mod.rs#L156): Centralise string conversion
+* [src/app/mod.rs:141](src/app/mod.rs#L141): filter songs by artist
+* [src/app/mod.rs:155](src/app/mod.rs#L155): Centralise string conversion
 
 ## src/audio.rs
 * [src/audio.rs:7](src/audio.rs#L7): Review code, add minimal Doc
@@ -18,11 +17,8 @@
 * [src/library/mod.rs:55](src/library/mod.rs#L55): Accept folders
 * [src/library/mod.rs:77](src/library/mod.rs#L77): Consider what to do with the file copy
 * [src/library/mod.rs:78](src/library/mod.rs#L78): Wrap song creation in a function
-* [src/library/mod.rs:79](src/library/mod.rs#L79): REVIEW
-* [src/library/mod.rs:138](src/library/mod.rs#L138): REVIEW
-* [src/library/mod.rs:155](src/library/mod.rs#L155): REVIEW AND DOC
+* [src/library/mod.rs:153](src/library/mod.rs#L153): Stop silent fails caused by ok()
 
 ## src/library/song.rs
 * [src/library/song.rs:8](src/library/song.rs#L8): Prototype validity enum
 * [src/library/song.rs:19](src/library/song.rs#L19): REVIEW AND DOC
-* [src/library/song.rs:68](src/library/song.rs#L68): REVIEW AND DOC
