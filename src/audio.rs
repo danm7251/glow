@@ -3,26 +3,26 @@ use rodio::{Decoder, OutputStream, OutputStreamBuilder, Sink};
 use std::fs::File;
 use std::path::Path;
 
-// May need stream_handle later
-// When app is closed rodio prints to console about the outputstream being dropped#
+// When app is closed rodio prints to console about the outputstream being dropped
 // TODO: Review code, add minimal Doc
 pub struct AudioEngine {
-    pub is_playing: bool,
-    _stream_handle: OutputStream,
+    // OutputStream must be kept alive
+    _stream: OutputStream,
     sink: Sink,
-    pub volume: u8,
+
+    pub is_playing: bool,
+    volume: u8,
 }
 
 impl AudioEngine {
     pub fn new() -> Self {
-        let stream_handle =
-            OutputStreamBuilder::open_default_stream().expect("Open default audio stream");
-        let sink = Sink::connect_new(stream_handle.mixer());
+        let stream = OutputStreamBuilder::open_default_stream().expect("Open default audio stream");
+        let sink = Sink::connect_new(stream.mixer());
 
         Self {
-            is_playing: false,
-            _stream_handle: stream_handle,
+            _stream: stream,
             sink,
+            is_playing: false,
             volume: 100,
         }
     }
@@ -59,16 +59,16 @@ impl AudioEngine {
         }
     }
 
-    pub fn set_volume(&self) -> Result<()> {
-        match f32::from(self.volume) * 0.01 {
-            n @ 0.0..=1.0 => self.sink.set_volume(n),
-            n => {
-                return Err(anyhow!(
-                    "Invalid value, {n}, passed to AudioEngine::set_volume()"
-                ));
-            }
-        }
+    pub fn is_playing(&self) -> bool {
+        self.is_playing
+    }
 
-        Ok(())
+    pub fn mut_volume(&mut self) -> &mut u8 {
+        &mut self.volume
+    }
+
+    pub fn set_volume(&self) {
+        let value = f32::from(self.volume) * 0.01;
+        self.sink.set_volume(value);
     }
 }
