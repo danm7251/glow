@@ -1,8 +1,8 @@
 use eframe::{
     App as eframeApp, Frame as eframeFrame,
     egui::{
-        CentralPanel, Context as eguiContext, Frame, Label, Layout, Margin, ProgressBar, Sense,
-        SidePanel, Slider, TopBottomPanel,
+        CentralPanel, Context as eguiContext, Frame, Label, Layout, Margin, ProgressBar,
+        ScrollArea, Sense, SidePanel, Slider, TopBottomPanel,
     },
 };
 use native_dialog::{DialogBuilder, MessageLevel};
@@ -112,37 +112,38 @@ impl GlowApp {
             .show(ctx, |ui| {
                 ui.heading("Songs");
                 ui.separator();
+                ScrollArea::vertical().show(ui, |ui| {
+                    if self.library.songs().is_empty() {
+                        ui.label("No songs found...");
+                    } else {
+                        for song in self.library.songs() {
+                            ui.horizontal_wrapped(|ui| {
+                                // --- Labels ---
+                                let title_label =
+                                    ui.add(Label::new(song.title()).sense(Sense::click()));
+                                ui.label("by");
+                                let artist_label =
+                                    ui.add(Label::new(song.artist()).sense(Sense::click()));
 
-                if self.library.songs().is_empty() {
-                    ui.label("No songs found...");
-                } else {
-                    for song in self.library.songs() {
-                        ui.horizontal(|ui| {
-                            // --- Labels ---
-                            let title_label =
-                                ui.add(Label::new(song.title()).sense(Sense::click()));
-                            ui.label("by");
-                            let artist_label =
-                                ui.add(Label::new(song.artist()).sense(Sense::click()));
-
-                            // --- Actions ---
-                            #[allow(clippy::collapsible_if, reason = "Readability")]
-                            if title_label.clicked() {
-                                if let Err(e) = self.audio_engine.play_song(song.path()) {
-                                    self.error_queue.push_back(format!("Playback failed: {e}"));
+                                // --- Actions ---
+                                #[allow(clippy::collapsible_if, reason = "Readability")]
+                                if title_label.clicked() {
+                                    if let Err(e) = self.audio_engine.play_song(song.path()) {
+                                        self.error_queue.push_back(format!("Playback failed: {e}"));
+                                    }
                                 }
-                            }
-                            if artist_label.clicked() {
-                                // TODO: filter songs by artist
-                            }
-                            title_label.context_menu(|ui| {
-                                if ui.button("Edit").clicked() {
-                                    self.edit_window = Some(EditWindow::new(song));
+                                if artist_label.clicked() {
+                                    // TODO: filter songs by artist
                                 }
+                                title_label.context_menu(|ui| {
+                                    if ui.button("Edit").clicked() {
+                                        self.edit_window = Some(EditWindow::new(song));
+                                    }
+                                });
                             });
-                        });
+                        }
                     }
-                }
+                });
             });
 
         // --- Error messages ---
