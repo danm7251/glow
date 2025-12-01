@@ -1,8 +1,8 @@
 use eframe::{
     App as eframeApp, Frame as eframeFrame,
     egui::{
-        CentralPanel, Context as eguiContext, Frame, Label, Layout, Margin, ScrollArea, Sense,
-        SidePanel, Slider, TopBottomPanel, global_theme_preference_switch,
+        CentralPanel, Context as eguiContext, Frame, Label, Layout, Margin, ProgressBar,
+        ScrollArea, Sense, SidePanel, Slider, TopBottomPanel,
     },
 };
 use native_dialog::{DialogBuilder, MessageLevel};
@@ -23,18 +23,18 @@ const ALLOW_NON_MP3: bool = false;
 pub struct GlowApp {
     library: Library,
     audio_engine: AudioEngine,
-    error_queue: VecDeque<String>, // A VecDeque is used for FIFO action
+    error_queue: VecDeque<anyhow::Error>, // A VecDeque is used for FIFO action
     edit_window: Option<EditWindow>,
 }
 
 impl Default for GlowApp {
     fn default() -> Self {
-        let mut error_queue = VecDeque::new();
+        let mut error_queue = VecDeque::<anyhow::Error>::new();
         // TODO: Make loading screen with spinner or progress bar
         let library = match Library::new(SONG_FOLDER, ALLOW_NON_MP3) {
             Ok(lib) => lib,
             Err(e) => {
-                error_queue.push_back(e.to_string());
+                error_queue.push_back(e);
                 Library::empty(SONG_FOLDER, ALLOW_NON_MP3)
             }
         };
@@ -64,7 +64,7 @@ impl GlowApp {
                 #[allow(clippy::collapsible_if, reason = "Readability")]
                 if let Some(path) = file.path {
                     if let Err(e) = self.library.import_from_path(path.as_path()) {
-                        self.error_queue.push_back(e.to_string());
+                        self.error_queue.push_back(e);
                     }
                 }
             }
@@ -90,9 +90,18 @@ impl GlowApp {
                         self.audio_engine.stop();
                     }
 
+                    if let Some(id) = self.audio_engine.current_song_id() {
+                        if let Some(song) = self.library.song(id) {
+                            if let Some(d) = song.duration() {
+                                let progress =
+                                    self.audio_engine.time_elapsed().as_secs() / d.as_secs();
+                                let seek_bar = ui.add(ProgressBar::new(progress as f32));
+                            }
+                        }
+                    };
+
                     // TODO: REVIEW
                     ui.with_layout(Layout::right_to_left(eframe::egui::Align::Max), |ui| {
-                        global_theme_preference_switch(ui);
                         let volume = ui.add(Slider::new(self.audio_engine.mut_volume(), 0..=100));
                         if volume.changed() {
                             self.audio_engine.set_volume();
@@ -114,9 +123,15 @@ impl GlowApp {
             .show(ctx, |ui| {
                 ui.heading("Songs");
                 ui.separator();
-                // TODO: REVIEW
-                // TODO: Covers labels
+                // TODO: REVIEW DOESNT WORK
+                // TODO: Covers labels and moves with the side panel when its resized
                 ScrollArea::vertical().show(ui, |ui| {
+                    let total_width = ui.available_width();
+                    let sb_width = ui.spacing().scroll.bar_width;
+                    let safe_width = total_width - sb_width;
+                    ui.set_max_width(safe_width);
+                    // GRRRRRRRRRRRRRRRRRR
+
                     if self.library.songs().is_empty() {
                         ui.label("No songs found...");
                     } else {
@@ -133,8 +148,10 @@ impl GlowApp {
                                 // --- Actions ---
                                 #[allow(clippy::collapsible_if, reason = "Readability")]
                                 if title_label.clicked() {
-                                    if let Err(e) = self.audio_engine.play_song(song.path()) {
-                                        self.error_queue.push_back(format!("Playback failed: {e}"));
+                                    if let Err(e) =
+                                        self.audio_engine.play_song(song.path(), song.id())
+                                    {
+                                        self.error_queue.push_back(e.context("Playback Failed"));
                                     }
                                 }
                                 if artist_label.clicked() {
@@ -152,13 +169,12 @@ impl GlowApp {
             });
 
         // --- Error messages ---
-        // TODO: Centralise string conversion
         if let Some(error) = self.error_queue.pop_front() {
             std::thread::spawn(move || {
                 let _ = DialogBuilder::message()
                     .set_level(MessageLevel::Error)
                     .set_title("Error!")
-                    .set_text(error)
+                    .set_text(error.to_string())
                     .alert()
                     .show();
             });
@@ -168,7 +184,7 @@ impl GlowApp {
         if let Some(edit_window) = &mut self.edit_window {
             match edit_window.show(&mut self.library, ctx) {
                 Ok(()) => (),
-                Err(e) => self.error_queue.push_back(e.to_string()),
+                Err(e) => self.error_queue.push_back(e),
             }
 
             if !edit_window.open() {

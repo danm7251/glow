@@ -45,6 +45,11 @@ impl Library {
         &self.songs
     }
 
+    // TODO: Doc
+    pub fn song(&self, song_id: usize) -> Option<&Song> {
+        self.songs.iter().find(|s| s.id() == song_id)
+    }
+
     /// Returns Some(&mut Song) if ``song_id`` exists
     pub fn song_mut(&mut self, song_id: usize) -> Option<&mut Song> {
         self.songs.iter_mut().find(|s| s.id() == song_id)

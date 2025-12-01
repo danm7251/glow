@@ -3,11 +3,10 @@
 * [src/app/mod.rs:33](src/app/mod.rs#L33): Make loading screen with spinner or progress bar
 * [src/app/mod.rs:76](src/app/mod.rs#L76): Fix bug when pausing and using label to play
 * [src/app/mod.rs:93](src/app/mod.rs#L93): REVIEW
-* [src/app/mod.rs:104](src/app/mod.rs#L104): REVIEW
-* [src/app/mod.rs:117](src/app/mod.rs#L117): REVIEW
-* [src/app/mod.rs:118](src/app/mod.rs#L118): Covers labels
-* [src/app/mod.rs:141](src/app/mod.rs#L141): filter songs by artist
-* [src/app/mod.rs:155](src/app/mod.rs#L155): Centralise string conversion
+* [src/app/mod.rs:103](src/app/mod.rs#L103): REVIEW
+* [src/app/mod.rs:116](src/app/mod.rs#L116): REVIEW
+* [src/app/mod.rs:117](src/app/mod.rs#L117): Covers labels and moves with the side panel when its resized
+* [src/app/mod.rs:140](src/app/mod.rs#L140): filter songs by artist
 
 ## src/audio.rs
 * [src/audio.rs:7](src/audio.rs#L7): Review code, add minimal Doc

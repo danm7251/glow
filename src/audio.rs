@@ -2,6 +2,7 @@ use anyhow::Result;
 use rodio::{Decoder, OutputStream, OutputStreamBuilder, Sink};
 use std::fs::File;
 use std::path::Path;
+use std::time::Duration;
 
 // When app is closed rodio prints to console about the outputstream being dropped
 // TODO: Review code, add minimal Doc
@@ -11,6 +12,7 @@ pub struct AudioEngine {
     sink: Sink,
 
     pub is_playing: bool,
+    current_song_id: Option<usize>,
     volume: u8,
 }
 
@@ -23,17 +25,19 @@ impl AudioEngine {
             _stream: stream,
             sink,
             is_playing: false,
+            current_song_id: None,
             volume: 100,
         }
     }
 
     // TODO: play_song() does not work if player is paused
-    pub fn play_song(&mut self, path: &Path) -> Result<()> {
+    pub fn play_song(&mut self, path: &Path, id: usize) -> Result<()> {
         let file = File::open(path)?;
         let source = Decoder::try_from(file)?;
 
         self.sink.stop();
         self.sink.append(source);
+        self.current_song_id = Some(id);
         self.is_playing = true;
 
         Ok(())
@@ -62,6 +66,14 @@ impl AudioEngine {
 
     pub fn is_playing(&self) -> bool {
         self.is_playing
+    }
+
+    pub fn current_song_id(&self) -> Option<usize> {
+        self.current_song_id
+    }
+
+    pub fn time_elapsed(&self) -> Duration {
+        self.sink.get_pos()
     }
 
     pub fn mut_volume(&mut self) -> &mut u8 {

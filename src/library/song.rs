@@ -78,6 +78,10 @@ impl Song {
         }
     }
 
+    pub fn duration(&self) -> Option<Duration> {
+        self.duration
+    }
+
     /// Sets the title of a song
     pub fn set_title(&mut self, title: impl Into<String>) {
         self.title = title.into();
