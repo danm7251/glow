@@ -1,22 +1,22 @@
 # TODO
 ## src/app/mod.rs
-* [src/app/mod.rs:33](src/app/mod.rs#L33): Make loading screen with spinner or progress bar
-* [src/app/mod.rs:76](src/app/mod.rs#L76): Fix bug when pausing and using label to play
-* [src/app/mod.rs:93](src/app/mod.rs#L93): REVIEW
-* [src/app/mod.rs:103](src/app/mod.rs#L103): REVIEW
-* [src/app/mod.rs:116](src/app/mod.rs#L116): REVIEW
-* [src/app/mod.rs:117](src/app/mod.rs#L117): Covers labels and moves with the side panel when its resized
-* [src/app/mod.rs:140](src/app/mod.rs#L140): filter songs by artist
+* [src/app/mod.rs:79](src/app/mod.rs#L79): Fix bug when pausing and using label to play
+* [src/app/mod.rs:114](src/app/mod.rs#L114): REVIEW
+* [src/app/mod.rs:127](src/app/mod.rs#L127): REVIEW
+* [src/app/mod.rs:140](src/app/mod.rs#L140): REVIEW DOESNT WORK
+* [src/app/mod.rs:141](src/app/mod.rs#L141): Covers labels and moves with the side panel when its resized
+* [src/app/mod.rs:174](src/app/mod.rs#L174): filter songs by artist
 
 ## src/audio.rs
-* [src/audio.rs:7](src/audio.rs#L7): Review code, add minimal Doc
-* [src/audio.rs:30](src/audio.rs#L30): play_song() does not work if player is paused
+* [src/audio.rs:8](src/audio.rs#L8): Review code, add minimal Doc
+* [src/audio.rs:33](src/audio.rs#L33): play_song() does not work if player is paused
 
 ## src/library/mod.rs
-* [src/library/mod.rs:55](src/library/mod.rs#L55): Accept folders
-* [src/library/mod.rs:77](src/library/mod.rs#L77): Consider what to do with the file copy
-* [src/library/mod.rs:78](src/library/mod.rs#L78): Wrap song creation in a function
-* [src/library/mod.rs:153](src/library/mod.rs#L153): Stop silent fails caused by ok()
+* [src/library/mod.rs:48](src/library/mod.rs#L48): Doc
+* [src/library/mod.rs:60](src/library/mod.rs#L60): Accept folders
+* [src/library/mod.rs:82](src/library/mod.rs#L82): Consider what to do with the file copy
+* [src/library/mod.rs:83](src/library/mod.rs#L83): Wrap song creation in a function
+* [src/library/mod.rs:158](src/library/mod.rs#L158): Stop silent fails caused by ok()
 
 ## src/library/song.rs
 * [src/library/song.rs:8](src/library/song.rs#L8): Prototype validity enum

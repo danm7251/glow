@@ -68,10 +68,6 @@ impl AudioEngine {
         self.is_playing
     }
 
-    pub fn current_song_id(&self) -> Option<usize> {
-        self.current_song_id
-    }
-
     pub fn time_elapsed(&self) -> Duration {
         self.sink.get_pos()
     }

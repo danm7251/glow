@@ -23,6 +23,7 @@ const ALLOW_NON_MP3: bool = false;
 pub struct GlowApp {
     library: Library,
     audio_engine: AudioEngine,
+    current_id: Option<usize>,
     error_queue: VecDeque<anyhow::Error>, // A VecDeque is used for FIFO action
     edit_window: Option<EditWindow>,
 }
@@ -30,7 +31,6 @@ pub struct GlowApp {
 impl Default for GlowApp {
     fn default() -> Self {
         let mut error_queue = VecDeque::<anyhow::Error>::new();
-        // TODO: Make loading screen with spinner or progress bar
         let library = match Library::new(SONG_FOLDER, ALLOW_NON_MP3) {
             Ok(lib) => lib,
             Err(e) => {
@@ -42,6 +42,7 @@ impl Default for GlowApp {
         Self {
             library,
             audio_engine: AudioEngine::new(),
+            current_id: None,
             error_queue,
             edit_window: None,
         }
@@ -73,39 +74,52 @@ impl GlowApp {
         TopBottomPanel::bottom("playback_control")
             .frame(Frame::side_top_panel(&ctx.style()).inner_margin(Margin::same(CONTROL_MARGIN)))
             .show(ctx, |ui| {
-                // TODO: Fix bug when pausing and using label to play
-                ui.horizontal(|ui| {
-                    #[allow(clippy::collapsible_else_if, reason = "Readability")]
-                    if self.audio_engine.is_playing() {
-                        if ui.button("Pause").clicked() {
-                            self.audio_engine.pause();
-                        }
-                    } else {
-                        if ui.button("Play").clicked() {
-                            self.audio_engine.resume();
-                        }
-                    }
-
-                    if ui.button("Stop").clicked() {
-                        self.audio_engine.stop();
-                    }
-
-                    if let Some(id) = self.audio_engine.current_song_id() {
-                        if let Some(song) = self.library.song(id) {
-                            if let Some(d) = song.duration() {
-                                let progress =
-                                    self.audio_engine.time_elapsed().as_secs() / d.as_secs();
-                                let seek_bar = ui.add(ProgressBar::new(progress as f32));
+                ui.columns(3, |cols| {
+                    cols[0].horizontal(|ui| {
+                        // TODO: Fix bug when pausing and using label to play
+                        #[allow(clippy::collapsible_else_if, reason = "Readability")]
+                        if self.audio_engine.is_playing() {
+                            if ui.button("Pause").clicked() {
+                                self.audio_engine.pause();
+                            }
+                        } else {
+                            if ui.button("Play").clicked() {
+                                self.audio_engine.resume();
                             }
                         }
-                    };
+
+                        if ui.button("Stop").clicked() {
+                            self.audio_engine.stop();
+                        }
+                    });
+
+                    cols[1].vertical(|ui| {
+                        if let Some(id) = self.current_id
+                            && let Some(current_song) = self.library.song(id)
+                        {
+                            ui.label(current_song.title());
+                            match current_song.duration() {
+                                Some(duration) => {
+                                    let progress = self.audio_engine.time_elapsed().as_secs_f32()
+                                        / duration.as_secs_f32();
+                                    ui.add(ProgressBar::new(progress));
+                                }
+                                None => {
+                                    ui.add_enabled(false, ProgressBar::new(1.0));
+                                }
+                            }
+                        }
+                    });
 
                     // TODO: REVIEW
-                    ui.with_layout(Layout::right_to_left(eframe::egui::Align::Max), |ui| {
-                        let volume = ui.add(Slider::new(self.audio_engine.mut_volume(), 0..=100));
-                        if volume.changed() {
-                            self.audio_engine.set_volume();
-                        }
+                    cols[2].vertical_centered(|ui| {
+                        ui.with_layout(Layout::right_to_left(eframe::egui::Align::Center), |ui| {
+                            let volume =
+                                ui.add(Slider::new(self.audio_engine.mut_volume(), 0..=100));
+                            if volume.changed() {
+                                self.audio_engine.set_volume();
+                            }
+                        });
                     });
                 });
             });
@@ -148,6 +162,8 @@ impl GlowApp {
                                 // --- Actions ---
                                 #[allow(clippy::collapsible_if, reason = "Readability")]
                                 if title_label.clicked() {
+                                    self.current_id = Some(song.id());
+
                                     if let Err(e) =
                                         self.audio_engine.play_song(song.path(), song.id())
                                     {
