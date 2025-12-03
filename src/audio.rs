@@ -1,18 +1,19 @@
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use rodio::{Decoder, OutputStream, OutputStreamBuilder, Sink};
 use std::fs::File;
 use std::path::Path;
 use std::time::Duration;
 
-// When app is closed rodio prints to console about the outputstream being dropped
-// TODO: Review code, add minimal Doc
+// TODO: [SOON] Review and refine code
+// TODO: [SOON] Document module
+// TODO: [LATER] Stop rodio printing when the OutputStream is dropped in developer builds
 pub struct AudioEngine {
     // OutputStream must be kept alive
     _stream: OutputStream,
     sink: Sink,
 
-    pub is_playing: bool,
-    current_song_id: Option<usize>,
+    pub is_playing: bool,           // TODO: [SOON] Encapsulate field
+    current_song_id: Option<usize>, // TODO: [SOON] Consider removing this field and giving it to a playback controller
     volume: u8,
 }
 
@@ -30,7 +31,7 @@ impl AudioEngine {
         }
     }
 
-    // TODO: play_song() does not work if player is paused
+    // FIXME: [LATER] Find a better solution to the issue of playing a new song while the engine is paused
     pub fn play_song(&mut self, path: &Path, id: usize) -> Result<()> {
         let file = File::open(path)?;
         let source = Decoder::try_from(file)?;
@@ -62,6 +63,14 @@ impl AudioEngine {
         if self.is_playing && self.sink.empty() {
             self.is_playing = false;
         }
+    }
+
+    pub fn seek(&mut self, time: Duration) -> Result<()> {
+        self.sink
+            .try_seek(time)
+            .map_err(|e| anyhow!("Failed to seek! {e}"))?;
+
+        Ok(())
     }
 
     pub fn is_playing(&self) -> bool {

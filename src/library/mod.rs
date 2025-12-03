@@ -2,7 +2,7 @@ use anyhow::{Context, Result, anyhow};
 use id3::{Tag, TagLike};
 use rodio::{Decoder, Source};
 use std::{
-    fs::{File, copy, read_dir},
+    fs::{File, copy, read_dir, remove_file},
     path::{Path, PathBuf},
     time::Duration,
 };
@@ -17,7 +17,7 @@ pub struct Library {
 }
 
 impl Library {
-    /// Returns a Result containing a Library with a tracklist loaded from the target folder
+    /// Returns a Result containing a Library with a tracklist loaded from the target folder.
     pub fn new(folder: impl Into<PathBuf>, allow_non_mp3: bool) -> Result<Self> {
         let folder = folder.into();
         let songs = load_songs(&folder, allow_non_mp3)?;
@@ -29,7 +29,7 @@ impl Library {
         })
     }
 
-    /// Returns a Library with an empty tracklist. This function cannot fail
+    /// Returns a Library with an empty tracklist. This function cannot fail.
     pub fn empty(folder: impl Into<PathBuf>, allow_non_mp3: bool) -> Self {
         let folder = folder.into();
 
@@ -40,24 +40,24 @@ impl Library {
         }
     }
 
-    /// Returns the tracklist as a vector of Songs
+    /// Returns the tracklist as a vector of Songs.
     pub fn songs(&self) -> &Vec<Song> {
         &self.songs
     }
 
-    // TODO: Doc
-    pub fn song(&self, song_id: usize) -> Option<&Song> {
+    /// Returns an immutable reference to a Song, if it exists.
+    pub fn get_song(&self, song_id: usize) -> Option<&Song> {
         self.songs.iter().find(|s| s.id() == song_id)
     }
 
-    /// Returns Some(&mut Song) if ``song_id`` exists
-    pub fn song_mut(&mut self, song_id: usize) -> Option<&mut Song> {
+    /// Returns a mutable reference to a Song, if it exists.
+    pub fn get_song_mut(&mut self, song_id: usize) -> Option<&mut Song> {
         self.songs.iter_mut().find(|s| s.id() == song_id)
     }
 
-    /// Returns the Result of attempting to permanently import a new song to the library
+    /// Returns the Result of attempting to permanently import a new song to the library.
     pub fn import_from_path(&mut self, path: &Path) -> Result<()> {
-        // TODO: Accept folders
+        // TODO: [LATER] Accept dropped folders
         if !path
             .extension()
             .is_some_and(|ext| ext.eq_ignore_ascii_case("mp3") || self.allow_non_mp3)
@@ -79,15 +79,24 @@ impl Library {
             format!("Failed to copy {} to {}", path.display(), target.display())
         })?;
 
-        // TODO: Consider what to do with the file copy
-        // TODO: Wrap song creation in a function
         match Song::new(self.songs.len(), &target, try_duration(&target)) {
             Ok(song) => self.songs.push(song),
             Err(e) => {
-                return Err(e).context(format!(
-                    "Failed to create Song from path: {}\nError occurred in import_path()",
-                    target.display()
-                ));
+                // Attempts to remove the copied file if Song creation fails
+                let undo_copy = match remove_file(path) {
+                    Ok(()) => format!("Succsessfully removed copy: {}", path.display()),
+                    Err(e) => format!(
+                        "Failed to remove the copy at: {}\n This was due to {e}",
+                        path.display()
+                    ),
+                };
+                // Returns error information with extra details about the emergency file removal
+                return Err(e)
+                    .context(format!(
+                        "Failed to create Song from path: {}\nError occurred in import_path()",
+                        target.display()
+                    ))
+                    .context(undo_copy);
             }
         }
 
@@ -153,9 +162,9 @@ fn load_songs(folder: &Path, allow_non_mp3: bool) -> Result<Vec<Song>> {
     Ok(songs)
 }
 
-/// Returns a duration calculated by Rodio if it exists
+/// Returns a Duration calculated by Rodio, if it exists
 fn try_duration(path: &Path) -> Option<Duration> {
-    // TODO: Stop silent fails caused by ok()
+    // TODO: [SOON] Stop silent fails caused by ok()
     let file = File::open(path).ok()?;
     let source = Decoder::try_from(file).ok()?;
     source.total_duration()

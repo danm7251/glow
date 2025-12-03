@@ -48,7 +48,7 @@ impl EditWindow {
                 }
 
                 if ui.add_enabled(enable_save, Button::new("Save")).clicked() {
-                    if let Some(song) = library.song_mut(self.song_id) {
+                    if let Some(song) = library.get_song_mut(self.song_id) {
                         song.set_title(&self.title);
                         song.set_artist(&self.artist);
 

@@ -3,6 +3,8 @@
 //#![warn(clippy::nursery)] // Experimental
 //#![warn(clippy::cargo)] // Cargo/project layout checks
 
+// TODO: [URGENT] A high level architecture review. Consider the benefits of separating playback state from GUI state. Consider how the AudioEngine, Library and GlowApp interact. It is acceptable for the GUI to poll the internals thats just the design paradigm that egui provides developers with.
+
 mod app;
 mod audio;
 mod library;

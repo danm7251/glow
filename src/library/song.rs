@@ -5,7 +5,7 @@ use std::{
     time::Duration,
 };
 
-// TODO: Prototype validity enum
+// TODO: [LATER] An enum should exist with rich information on the validity of the file. Possibly in Library.
 
 pub struct Song {
     id: usize,
@@ -16,8 +16,7 @@ pub struct Song {
 }
 
 impl Song {
-    // TODO: REVIEW AND DOC
-    /// Returns a Result containing a Song
+    /// Returns a Result containing a Song.
     pub fn new(id: usize, path: &Path, duration: Option<Duration>) -> Result<Self> {
         let filename_os = path
             .file_name()
@@ -45,27 +44,27 @@ impl Song {
         })
     }
 
-    /// Returns the ID of a song
+    /// Returns the ID of a song.
     pub fn id(&self) -> usize {
         self.id
     }
 
-    /// Returns the filepath of a song
+    /// Returns the filepath of a song.
     pub fn path(&self) -> &Path {
         &self.path
     }
 
-    /// Returns the title of a song
+    /// Returns the title of a song.
     pub fn title(&self) -> &str {
         &self.title
     }
 
-    /// Returns the artist of a song
+    /// Returns the artist of a song.
     pub fn artist(&self) -> &str {
         &self.artist
     }
 
-    /// Returns the duration formatted as minutes:seconds
+    /// Returns the duration of a song, if it exists, formatted as minutes:seconds.
     pub fn formatted_duration(&self) -> String {
         match self.duration {
             Some(d) => {
@@ -74,20 +73,21 @@ impl Song {
                 let remainder = seconds % 60;
                 format!("{minutes}:{remainder:02}")
             }
-            None => "--:--".to_string(),
+            None => "??:??".to_string(),
         }
     }
 
+    /// Returns the duration of a song, if it exists.
     pub fn duration(&self) -> Option<Duration> {
         self.duration
     }
 
-    /// Sets the title of a song
+    /// Sets the title of a song.
     pub fn set_title(&mut self, title: impl Into<String>) {
         self.title = title.into();
     }
 
-    /// Sets the artist of a song
+    /// Sets the artist of a song.
     pub fn set_artist(&mut self, artist: impl Into<String>) {
         self.artist = artist.into();
     }
