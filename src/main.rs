@@ -8,6 +8,7 @@
 mod app;
 mod audio;
 mod library;
+mod player;
 
 use eframe::{
     NativeOptions as eframeNativeOptions, Result as eframeResult, run_native as eframe_run_native,
