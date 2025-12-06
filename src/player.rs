@@ -11,9 +11,9 @@ use crate::{audio::AudioEngine, library::Library};
 
 /// Represents the current state of audio playback.
 ///
-/// `Playing` and `Paused` store the ID of the active track.
-/// `Stopped` indicates no track is active.
-#[derive(PartialEq)]
+/// `Playing` and `Paused` store the ID of the active song.
+/// `Stopped` indicates no song is active.
+#[derive(Debug, PartialEq)]
 pub enum PlaybackState {
     Playing { id: usize },
     Paused { id: usize },
@@ -34,7 +34,6 @@ impl Player {
     /// Creates a new `Player`.
     ///
     /// The initial state is `Stopped` and the default volume is 100.
-    /// Player cannot exist without library.
     pub fn new() -> Self {
         Self {
             audio: AudioEngine::new(),
@@ -48,7 +47,18 @@ impl Player {
         &self.state
     }
 
-    // TODO: [SOONEST] Consider some helpers such as current_id(), is_playing()
+    /// Returns true if a song is currently playing.
+    pub fn is_playing(&self) -> bool {
+        matches!(self.state, PlaybackState::Playing { .. })
+    }
+
+    /// Returns the ID of the current song, if it exists.
+    pub fn current_id(&self) -> Option<usize> {
+        match self.state {
+            PlaybackState::Playing { id } | PlaybackState::Paused { id } => Some(id),
+            PlaybackState::Stopped => None,
+        }
+    }
 
     /// Returns the current playback volume (0-100).
     pub fn volume(&self) -> u8 {
@@ -56,8 +66,11 @@ impl Player {
     }
 
     /// Returns the players position in the current song.
-    pub fn position(&self) -> f64 {
-        self.audio.time_elapsed().as_secs_f64()
+    pub fn position(&self) -> Option<f64> {
+        if self.state == PlaybackState::Stopped {
+            return None;
+        }
+        Some(self.audio.time_elapsed().as_secs_f64())
     }
 
     /// Attempts to play a song.
@@ -118,6 +131,17 @@ impl Player {
 
     /// Attempts to set the time position of the song.
     pub fn set_position(&mut self, value: f64) -> Result<()> {
+        let seeking_is_allowed = !matches!(self.state, PlaybackState::Stopped);
+
+        debug_assert!(
+            seeking_is_allowed,
+            "Player::set_position() called while state was stopped"
+        );
+
+        if !seeking_is_allowed {
+            return Ok(());
+        }
+
         let time = Duration::from_secs_f64(value);
         self.audio.seek(time)
     }

@@ -34,5 +34,4 @@
 * [src\main.rs:6](src\main.rs#L6): [URGENT] A high level architecture review. Consider the benefits of separating playback state from GUI state. Consider how the AudioEngine, Library and GlowApp interact. It is acceptable for the GUI to poll the internals thats just the design paradigm that egui provides developers with.
 
 ## src\player.rs
-* [src\player.rs:51](src\player.rs#L51): [SOONEST] Consider some helpers such as current_id(), is_playing()
-* [src\player.rs:128](src\player.rs#L128): [SOON] Automate tests with a commit hook and CI using github actions
+* [src\player.rs:152](src\player.rs#L152): [SOON] Automate tests with a commit hook and CI using github actions
