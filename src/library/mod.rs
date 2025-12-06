@@ -50,6 +50,14 @@ impl Library {
         self.songs.iter().find(|s| s.id() == song_id)
     }
 
+    /// Returns a view into the filepath associated with the id.
+    pub fn get_song_path(&self, song_id: usize) -> Result<&Path> {
+        match self.songs.iter().find(|s| s.id() == song_id) {
+            Some(s) => Ok(s.path()),
+            None => Err(anyhow!("Failed to access path for song id: {song_id}")),
+        }
+    }
+
     /// Returns a mutable reference to a Song, if it exists.
     pub fn get_song_mut(&mut self, song_id: usize) -> Option<&mut Song> {
         self.songs.iter_mut().find(|s| s.id() == song_id)

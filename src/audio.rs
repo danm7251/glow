@@ -1,5 +1,5 @@
 use anyhow::{Result, anyhow};
-use rodio::{Decoder, OutputStream, OutputStreamBuilder, Sink};
+use rodio::{Decoder, OutputStream, OutputStreamBuilder, Sink, source};
 use std::fs::File;
 use std::path::Path;
 use std::time::Duration;
@@ -12,8 +12,11 @@ pub struct AudioEngine {
     _stream: OutputStream,
     sink: Sink,
 
-    pub is_playing: bool,           // TODO: [SOON] Encapsulate field
+    // Deprecated
+    pub is_playing: bool, // TODO: [SOON] Encapsulate field
+    // Deprecated
     current_song_id: Option<usize>, // TODO: [SOON] Consider removing this field and giving it to a playback controller
+    // Depracated
     volume: u8,
 }
 
@@ -31,8 +34,8 @@ impl AudioEngine {
         }
     }
 
-    // FIXME: [LATER] Find a better solution to the issue of playing a new song while the engine is paused
-    pub fn play_song(&mut self, path: &Path, id: usize) -> Result<()> {
+    // Deprecated
+    pub fn old_play_song(&mut self, path: &Path, id: usize) -> Result<()> {
         let file = File::open(path)?;
         let source = Decoder::try_from(file)?;
 
@@ -44,21 +47,54 @@ impl AudioEngine {
         Ok(())
     }
 
-    pub fn pause(&mut self) {
-        self.sink.pause();
-        self.is_playing = false;
+    /// Attempts to play a song.
+    ///
+    /// Opens a file and tries to decode it, if succsessful the file is queued in the sink.
+    pub fn play_song(&mut self, path: &Path) -> Result<()> {
+        let file = File::open(path)?;
+        let source = Decoder::try_from(file)?;
+
+        // FIXME: [LATER] Find a better solution to the issue of playing a new song while the engine is paused
+        // TODO: [SOONEST] self.sink.stop()
+        self.sink.append(source);
+
+        Ok(())
     }
 
-    pub fn resume(&mut self) {
+    // Deprecated
+    pub fn old_resume(&mut self) {
         self.sink.play();
         self.is_playing = true;
     }
 
-    pub fn stop(&mut self) {
+    /// Resumes the sink.
+    pub fn resume(&mut self) {
+        self.sink.play();
+    }
+
+    // Deprecated
+    pub fn old_pause(&mut self) {
+        self.sink.pause();
+        self.is_playing = false;
+    }
+
+    /// Pauses the sink.
+    pub fn pause(&mut self) {
+        self.sink.pause();
+    }
+
+    // Deprecated
+    pub fn old_stop(&mut self) {
         self.sink.stop();
         self.is_playing = false;
     }
 
+    /// Stops the sink.
+    pub fn stop(&mut self) {
+        self.sink.stop();
+    }
+
+    // Deprecated
     pub fn update(&mut self) {
         if self.is_playing && self.sink.empty() {
             self.is_playing = false;
@@ -73,6 +109,7 @@ impl AudioEngine {
         Ok(())
     }
 
+    // Deprecated
     pub fn is_playing(&self) -> bool {
         self.is_playing
     }
@@ -81,12 +118,20 @@ impl AudioEngine {
         self.sink.get_pos()
     }
 
+    // Deprecated
     pub fn mut_volume(&mut self) -> &mut u8 {
         &mut self.volume
     }
 
-    pub fn set_volume(&self) {
+    // Deprecated
+    pub fn old_set_volume(&self) {
         let value = f32::from(self.volume) * 0.01;
         self.sink.set_volume(value);
+    }
+
+    /// Sets the volume of the sink.
+    pub fn set_volume(&self, value: u8) {
+        let normed_value = f32::from(value) * 0.01;
+        self.sink.set_volume(normed_value);
     }
 }

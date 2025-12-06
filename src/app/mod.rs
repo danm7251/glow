@@ -125,7 +125,7 @@ impl GlowApp {
                                     self.current_id = Some(song.id());
 
                                     if let Err(e) =
-                                        self.audio_engine.play_song(song.path(), song.id())
+                                        self.audio_engine.old_play_song(song.path(), song.id())
                                     {
                                         self.error_queue.push_back(e.context("Playback Failed"));
                                     }
@@ -158,17 +158,17 @@ impl GlowApp {
                                 #[allow(clippy::collapsible_else_if, reason = "Readability")]
                                 if self.audio_engine.is_playing() {
                                     if ui.button("Pause").clicked() {
-                                        self.audio_engine.pause();
+                                        self.audio_engine.old_pause();
                                     }
                                 } else {
                                     if ui.button("Play").clicked() {
-                                        self.audio_engine.resume();
+                                        self.audio_engine.old_resume();
                                     }
                                 }
 
                                 if ui.button("Stop").clicked() {
                                     self.current_id = None;
-                                    self.audio_engine.stop();
+                                    self.audio_engine.old_stop();
                                 }
                             });
                         });
@@ -177,7 +177,7 @@ impl GlowApp {
                             let volume =
                                 ui.add(Slider::new(self.audio_engine.mut_volume(), 0..=100));
                             if volume.changed() {
-                                self.audio_engine.set_volume();
+                                self.audio_engine.old_set_volume();
                             }
                         });
                     });
