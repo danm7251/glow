@@ -13,7 +13,7 @@ use crate::{audio::AudioEngine, library::Library};
 ///
 /// `Playing` and `Paused` store the ID of the active song.
 /// `Stopped` indicates no song is active.
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum PlaybackState {
     Playing { id: usize },
     Paused { id: usize },
@@ -36,15 +36,17 @@ impl Player {
     /// The initial state is `Stopped` and the default volume is 100.
     pub fn new() -> Self {
         Self {
-            audio: AudioEngine::new(),
+            audio: AudioEngine::new().unwrap(), // TODO: [SOON] Handle no audio
             state: PlaybackState::Stopped,
             volume: 100,
         }
     }
 
+    #[allow(dead_code)]
     /// Returns a reference to the current playback state.
-    pub fn state(&self) -> &PlaybackState {
-        &self.state
+    pub fn state(&self) -> PlaybackState {
+        // REVIEW: [LATER] Return type
+        self.state
     }
 
     /// Returns true if a song is currently playing.
@@ -116,6 +118,15 @@ impl Player {
     pub fn stop(&mut self) {
         if self.state != PlaybackState::Stopped {
             self.audio.stop();
+            self.state = PlaybackState::Stopped;
+        }
+    }
+
+    /// Checks for any changes in the state of the `AudioEngine`.
+    ///
+    /// Checks if the `AudioEngine` is idle and if it doesn't match `Player`'s internal state updates `Player`
+    pub fn update(&mut self) {
+        if self.audio.is_idle() && self.state != PlaybackState::Stopped {
             self.state = PlaybackState::Stopped;
         }
     }

@@ -1,37 +1,20 @@
-# FIXME
-## src\app\mod.rs
-* [src\app\mod.rs:162](src\app\mod.rs#L162): [LATER] Consider this side of the playbacks role in the AudioEngine::play_song bug
-
-## src\audio.rs
-* [src\audio.rs:57](src\audio.rs#L57): [LATER] Find a better solution to the issue of playing a new song while the engine is paused
+# REVIEW
+## src\player.rs
+* [src\player.rs:48](src\player.rs#L48): [LATER] Return type
 # TODO
 ## src\app\mod.rs
-* [src\app\mod.rs:58](src\app\mod.rs#L58): [SOON] Consider how the main loop can facilitate clean communication between modules
-* [src\app\mod.rs:118](src\app\mod.rs#L118): [LATER] Need some kind of intermediate Vector to represent 'views' into the Library. Consider that the Library showcases data and the new layer will encapsulate actions
-* [src\app\mod.rs:138](src\app\mod.rs#L138): [LATER] Filter tracklist by artist
-* [src\app\mod.rs:152](src\app\mod.rs#L152): [LATER] Finalize the playback bar design
-* [src\app\mod.rs:180](src\app\mod.rs#L180): [SOON] Consider another layer of abstraction
-* [src\app\mod.rs:192](src\app\mod.rs#L192): [LATER] Current song should be dropped when song ends
-* [src\app\mod.rs:193](src\app\mod.rs#L193): [LATER] Style the seek bar
-* [src\app\mod.rs:194](src\app\mod.rs#L194): [SOON] Review and revise seek logic according to pending arch. review
-
-## src\audio.rs
-* [src\audio.rs:7](src\audio.rs#L7): [SOON] Review and refine code
-* [src\audio.rs:8](src\audio.rs#L8): [SOON] Document module
-* [src\audio.rs:9](src\audio.rs#L9): [LATER] Stop rodio printing when the OutputStream is dropped in developer builds
-* [src\audio.rs:16](src\audio.rs#L16): [SOON] Encapsulate field
-* [src\audio.rs:18](src\audio.rs#L18): [SOON] Consider removing this field and giving it to a playback controller
-* [src\audio.rs:58](src\audio.rs#L58): [SOONEST] self.sink.stop()
+* [src\app\mod.rs:52](src\app\mod.rs#L52): [SOON] Consider how the main loop can facilitate clean communication between modules
+* [src\app\mod.rs:110](src\app\mod.rs#L110): [LATER] Need some kind of intermediate Vector to represent 'views' into the Library. Consider that the Library showcases data and the new layer will encapsulate actions
+* [src\app\mod.rs:128](src\app\mod.rs#L128): [LATER] Filter tracklist by artist
+* [src\app\mod.rs:142](src\app\mod.rs#L142): [LATER] Finalize the playback bar design
+* [src\app\mod.rs:177](src\app\mod.rs#L177): [LATER] Style the seek bar
 
 ## src\library\mod.rs
 * [src\library\mod.rs:68](src\library\mod.rs#L68): [LATER] Accept dropped folders
-* [src\library\mod.rs:175](src\library\mod.rs#L175): [SOON] Stop silent fails caused by ok()
 
 ## src\library\song.rs
 * [src\library\song.rs:8](src\library\song.rs#L8): [LATER] An enum should exist with rich information on the validity of the file. Possibly in Library.
 
-## src\main.rs
-* [src\main.rs:6](src\main.rs#L6): [URGENT] A high level architecture review. Consider the benefits of separating playback state from GUI state. Consider how the AudioEngine, Library and GlowApp interact. It is acceptable for the GUI to poll the internals thats just the design paradigm that egui provides developers with.
-
 ## src\player.rs
-* [src\player.rs:152](src\player.rs#L152): [SOON] Automate tests with a commit hook and CI using github actions
+* [src\player.rs:39](src\player.rs#L39): [SOON] Handle no audio
+* [src\player.rs:163](src\player.rs#L163): [SOON] Automate tests with a commit hook and CI using github actions

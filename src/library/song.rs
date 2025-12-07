@@ -73,7 +73,7 @@ impl Song {
                 let remainder = seconds % 60;
                 format!("{minutes}:{remainder:02}")
             }
-            None => "??:??".to_string(),
+            None => "? ? : ? ?".to_string(),
         }
     }
 

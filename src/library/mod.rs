@@ -172,7 +172,6 @@ fn load_songs(folder: &Path, allow_non_mp3: bool) -> Result<Vec<Song>> {
 
 /// Returns a Duration calculated by Rodio, if it exists
 fn try_duration(path: &Path) -> Option<Duration> {
-    // TODO: [SOON] Stop silent fails caused by ok()
     let file = File::open(path).ok()?;
     let source = Decoder::try_from(file).ok()?;
     source.total_duration()

@@ -10,9 +10,7 @@ use std::{collections::VecDeque, time::Duration};
 
 pub mod edit_window;
 
-// REFACTOR DONE
 use crate::{app::edit_window::EditWindow, library::Library, player::Player};
-// REFACTOR DONE
 
 // Temporary hardcoded filepath, will be upgraded once permanent config is implemented
 const SONG_FOLDER: &str = "test";
@@ -24,9 +22,7 @@ const ALLOW_NON_MP3: bool = false;
 
 pub struct GlowApp {
     library: Library,
-    // REFACTOR DONE
     player: Player,
-    // REFACTOR DONE
     error_queue: VecDeque<anyhow::Error>, // A VecDeque is used for FIFO action
     edit_window: Option<EditWindow>,
 }
@@ -44,9 +40,7 @@ impl Default for GlowApp {
 
         Self {
             library,
-            // REFACTOR DONE
             player: Player::new(),
-            // REFACTOR DONE
             error_queue,
             edit_window: None,
         }
@@ -56,9 +50,7 @@ impl Default for GlowApp {
 impl eframeApp for GlowApp {
     fn update(&mut self, ctx: &eguiContext, _frame: &mut eframeFrame) {
         // TODO: [SOON] Consider how the main loop can facilitate clean communication between modules
-        // REFACTOR DONE
-        // old code: self.audio_engine.update();
-        // REFACTOR DONE
+        self.player.update();
         self.render_ui(ctx);
     }
 }
@@ -127,12 +119,10 @@ impl GlowApp {
                                 ui.label(song.formatted_duration());
 
                                 // --- Actions ---
-                                if title_label.clicked() {
-                                    // REFACTOR DONE
-                                    if let Err(e) = self.player.play(&self.library, song.id()) {
-                                        self.error_queue.push_back(e.context("Playback Failed"));
-                                    }
-                                    // REFACTOR DONE
+                                if title_label.clicked()
+                                    && let Err(e) = self.player.play(&self.library, song.id())
+                                {
+                                    self.error_queue.push_back(e.context("Playback Failed"));
                                 }
                                 if artist_label.clicked() {
                                     // TODO: [LATER] Filter tracklist by artist
@@ -157,16 +147,14 @@ impl GlowApp {
                 ui.horizontal(|ui| {
                     ui.vertical(|ui| {
                         ui.horizontal_centered(|ui| {
-                            // REFACTOR DONE
                             ui.add_enabled_ui(self.player.current_id().is_some(), |ui| {
-                                // FIXME: [LATER] Consider this side of the playbacks role in the AudioEngine::play_song bug
-                                #[allow(clippy::collapsible_else_if, reason = "Readability")]
-                                if self.player.is_playing() {
-                                    if ui.button("Pause").clicked() {
+                                let playing = self.player.is_playing();
+                                let label = if playing { "Pause" } else { "Play" };
+
+                                if ui.button(label).clicked() {
+                                    if playing {
                                         self.player.pause();
-                                    }
-                                } else {
-                                    if ui.button("Play").clicked() {
+                                    } else {
                                         self.player.resume();
                                     }
                                 }
@@ -175,54 +163,42 @@ impl GlowApp {
                                     self.player.stop();
                                 }
                             });
-                            // REFACTOR DONE
                         });
-                        // TODO: [SOON] Consider another layer of abstraction
+
                         ui.horizontal_centered(|ui| {
-                            // REFACTOR DONE
                             let mut volume = self.player.volume();
                             let volume_slider = ui.add(Slider::new(&mut volume, 0..=100));
                             if volume_slider.changed() {
                                 self.player.set_volume(volume);
                             }
-                            // REFACTOR DONE
                         });
                     });
 
-                    // TODO: [LATER] Current song should be dropped when song ends
                     // TODO: [LATER] Style the seek bar
-                    // TODO: [SOON] Review and revise seek logic according to pending arch. review
                     ui.vertical(|ui| {
-                        // REFACTOR DONE
                         if let Some(id) = self.player.current_id()
-                            && let Some(current_song) = self.library.get_song(id)
+                            && let Some(song) = self.library.get_song(id)
                         {
-                            // REFACTOR DONE
                             ui.horizontal(|ui| {
-                                ui.label(current_song.title());
+                                ui.label(song.title());
                                 ui.label("by");
-                                ui.label(current_song.artist());
+                                ui.label(song.artist());
                             });
 
-                            // REFACTOR DONE
-                            if let Some(duration) = current_song.duration()
-                                && let Some(mut current_time) = self.player.position()
-                            {
-                                let total_time = duration.as_secs_f64();
-
-                                println!("Time elapsed: {current_time}\nTotal time: {total_time}");
-
-                                let seek_bar =
-                                    ui.add(Slider::new(&mut current_time, 0.0..=total_time));
-                                if seek_bar.changed()
-                                    && let Err(e) = self.player.set_position(current_time)
-                                {
-                                    self.error_queue.push_back(e);
+                            match (song.duration(), self.player.position()) {
+                                (Some(duration), Some(mut position)) => {
+                                    let total = duration.as_secs_f64();
+                                    let seek_bar = ui.add(Slider::new(&mut position, 0.0..=total));
+                                    if seek_bar.drag_stopped()
+                                        && let Err(e) = self.player.set_position(position)
+                                    {
+                                        self.error_queue.push_back(e);
+                                    }
                                 }
-                            } else {
-                                ui.add_enabled(false, ProgressBar::new(1.0));
+                                _ => {
+                                    ui.add_enabled(false, ProgressBar::new(1.0));
+                                }
                             }
-                            // REFACTOR DONE
                         }
                     });
                 });
