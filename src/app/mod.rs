@@ -10,7 +10,9 @@ use std::{collections::VecDeque, time::Duration};
 
 pub mod edit_window;
 
+// REFACTOR
 use crate::{app::edit_window::EditWindow, audio::AudioEngine, library::Library};
+// REFACTOR
 
 // Temporary hardcoded filepath, will be upgraded once permanent config is implemented
 const SONG_FOLDER: &str = "test";
@@ -22,8 +24,10 @@ const ALLOW_NON_MP3: bool = false;
 
 pub struct GlowApp {
     library: Library,
+    // REFACTOR
     audio_engine: AudioEngine,
     current_id: Option<usize>,
+    // REFACTOR
     error_queue: VecDeque<anyhow::Error>, // A VecDeque is used for FIFO action
     edit_window: Option<EditWindow>,
 }
@@ -41,8 +45,10 @@ impl Default for GlowApp {
 
         Self {
             library,
+            // REFACTOR
             audio_engine: AudioEngine::new(),
             current_id: None,
+            // REFACTOR
             error_queue,
             edit_window: None,
         }
@@ -52,7 +58,9 @@ impl Default for GlowApp {
 impl eframeApp for GlowApp {
     fn update(&mut self, ctx: &eguiContext, _frame: &mut eframeFrame) {
         // TODO: [SOON] Consider how the main loop can facilitate clean communication between modules
+        // REVIEW/REFACTOR
         self.audio_engine.update();
+        // REVIEW/REFACTOR
         self.render_ui(ctx);
     }
 }
@@ -122,6 +130,7 @@ impl GlowApp {
 
                                 // --- Actions ---
                                 if title_label.clicked() {
+                                    // REFACTOR
                                     self.current_id = Some(song.id());
 
                                     if let Err(e) =
@@ -129,6 +138,7 @@ impl GlowApp {
                                     {
                                         self.error_queue.push_back(e.context("Playback Failed"));
                                     }
+                                    // REFACTOR
                                 }
                                 if artist_label.clicked() {
                                     // TODO: [LATER] Filter tracklist by artist
@@ -153,6 +163,7 @@ impl GlowApp {
                 ui.horizontal(|ui| {
                     ui.vertical(|ui| {
                         ui.horizontal_centered(|ui| {
+                            // REFACTOR
                             ui.add_enabled_ui(self.current_id.is_some(), |ui| {
                                 // FIXME: [LATER] Consider this side of the playbacks role in the AudioEngine::play_song bug
                                 #[allow(clippy::collapsible_else_if, reason = "Readability")]
@@ -171,14 +182,17 @@ impl GlowApp {
                                     self.audio_engine.old_stop();
                                 }
                             });
+                            // REFACTOR
                         });
                         // TODO: [SOON] Consider another layer of abstraction
                         ui.horizontal_centered(|ui| {
+                            // REFACTOR
                             let volume =
                                 ui.add(Slider::new(self.audio_engine.mut_volume(), 0..=100));
                             if volume.changed() {
                                 self.audio_engine.old_set_volume();
                             }
+                            // REFACTOR
                         });
                     });
 
@@ -186,9 +200,11 @@ impl GlowApp {
                     // TODO: [LATER] Style the seek bar
                     // TODO: [SOON] Review and revise seek logic according to pending arch. review
                     ui.vertical(|ui| {
+                        // REFACTOR
                         if let Some(id) = self.current_id
                             && let Some(current_song) = self.library.get_song(id)
                         {
+                            // REFACTOR
                             ui.horizontal(|ui| {
                                 ui.label(current_song.title());
                                 ui.label("by");
@@ -197,10 +213,11 @@ impl GlowApp {
 
                             match current_song.duration() {
                                 Some(duration) => {
+                                    let total_time = duration.as_secs_f64();
+                                    // REFACTOR
                                     let mut current_time =
                                         self.audio_engine.time_elapsed().as_secs_f64();
-
-                                    let total_time = duration.as_secs_f64();
+                                    // REFACTOR
 
                                     println!(
                                         "Time elapsed: {current_time}\nTotal time: {total_time}"
