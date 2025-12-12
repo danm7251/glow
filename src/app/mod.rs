@@ -1,8 +1,8 @@
 use eframe::{
     App as eframeApp, Frame as eframeFrame,
     egui::{
-        CentralPanel, Context as eguiContext, Frame, Label, Margin, ProgressBar, ScrollArea, Sense,
-        SidePanel, Slider, TopBottomPanel,
+        Button, CentralPanel, Context as eguiContext, Frame, Label, Layout, Margin, ProgressBar,
+        ScrollArea, Sense, SidePanel, Slider, TopBottomPanel,
     },
 };
 use native_dialog::{DialogBuilder, MessageLevel};
@@ -49,6 +49,9 @@ impl Default for GlowApp {
 
 impl eframeApp for GlowApp {
     fn update(&mut self, ctx: &eguiContext, _frame: &mut eframeFrame) {
+        #[cfg(debug_assertions)]
+        ctx.set_debug_on_hover(true);
+
         // TODO: [SOON] Consider how the main loop can facilitate clean communication between modules
         self.player.update();
         self.render_ui(ctx);
@@ -59,12 +62,85 @@ impl GlowApp {
     /// Main GUI loop
     fn render_ui(&mut self, ctx: &eguiContext) {
         self.process_dropped_files(ctx);
-        self.ui_playback_bar(ctx);
+        self.new_playback_bar(ctx);
         self.ui_playlist_panel(ctx);
         self.ui_tracklist(ctx);
         self.ui_edit_window(ctx);
         self.process_errors();
         ctx.request_repaint_after(Duration::from_millis(100));
+    }
+
+    fn new_playback_bar(&mut self, ctx: &eguiContext) {
+        TopBottomPanel::bottom("Playback Bar")
+            .frame(Frame::side_top_panel(&ctx.style()).inner_margin(Margin::same(CONTROL_MARGIN)))
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    // 1st Section: Playback Buttons
+                    // TODO: [SOON] Force all buttons to be equal size
+                    ui.vertical(|ui| {
+                        ui.add_enabled_ui(self.player.current_id().is_some(), |ui| {
+                            let playing = self.player.is_playing();
+
+                            ui.horizontal(|ui| {
+                                let label = if playing { "Pause" } else { "Play" };
+
+                                if ui.button(label).clicked() {
+                                    if playing {
+                                        self.player.pause();
+                                    } else {
+                                        self.player.resume();
+                                    }
+                                }
+                                if ui.button("Stop").clicked() {
+                                    self.player.stop();
+                                }
+                            });
+                            ui.horizontal(|ui| {
+                                if ui.button("Back").clicked() {
+                                    // TODO: [LATER] Add functionality
+                                }
+                                if ui.button("Skip").clicked() {
+                                    // TODO: [LATER] Add functionality
+                                }
+                            });
+                        });
+                    });
+
+                    /*
+                    ui.label("Section 2");
+
+                    let expand_size = ui.available_size();
+                    ui.allocate_ui(expand_size, |ui| {
+                        ui.label("Spacer");
+                    });
+                    */
+
+                    ui.with_layout(Layout::right_to_left(eframe::egui::Align::Max), |ui| {
+                        // 3rd Section: Volume
+                        ui.vertical(|ui| {
+                            ui.horizontal(|ui| {
+                                if ui.button("Settings").clicked() {
+                                    // TODO: [LATER] Add functionality
+                                }
+                                if ui.button("Edit").clicked() {
+                                    // TODO: [LATER] Add functionality
+                                }
+                            });
+
+                            ui.horizontal(|ui| {
+                                let mut volume = self.player.volume();
+                                ui.label(format!("{volume}%"));
+
+                                let volume_slider =
+                                    ui.add(Slider::new(&mut volume, 0..=100).show_value(false));
+                                if volume_slider.changed() {
+                                    self.player.set_volume(volume);
+                                }
+                            });
+                        });
+                    });
+                });
+            });
     }
 
     fn process_dropped_files(&mut self, ctx: &eguiContext) {
@@ -164,17 +240,10 @@ impl GlowApp {
                                 }
                             });
                         });
-
-                        ui.horizontal_centered(|ui| {
-                            let mut volume = self.player.volume();
-                            let volume_slider = ui.add(Slider::new(&mut volume, 0..=100));
-                            if volume_slider.changed() {
-                                self.player.set_volume(volume);
-                            }
-                        });
                     });
 
-                    // TODO: [LATER] Style the seek bar
+                    ui.separator();
+
                     ui.vertical(|ui| {
                         if let Some(id) = self.player.current_id()
                             && let Some(song) = self.library.get_song(id)
@@ -183,12 +252,23 @@ impl GlowApp {
                                 ui.label(song.title());
                                 ui.label("by");
                                 ui.label(song.artist());
+                                ui.label(song.formatted_duration());
                             });
 
                             match (song.duration(), self.player.position()) {
                                 (Some(duration), Some(mut position)) => {
+                                    ui.spacing_mut().slider_width = ui.available_width() - 100.0;
+
                                     let total = duration.as_secs_f64();
-                                    let seek_bar = ui.add(Slider::new(&mut position, 0.0..=total));
+
+                                    // TODO: [SOON] Format position to minutes and seconds (.custom_formatter())
+                                    // TODO: [LATER] Style the seek bar (.handle_shape())
+
+                                    let seek_bar = ui.add_sized(
+                                        [ui.available_width(), 0.0],
+                                        Slider::new(&mut position, 0.0..=total).show_value(false),
+                                    );
+
                                     if seek_bar.drag_stopped()
                                         && let Err(e) = self.player.set_position(position)
                                     {
@@ -200,6 +280,19 @@ impl GlowApp {
                                 }
                             }
                         }
+                    });
+
+                    ui.separator();
+
+                    ui.horizontal_centered(|ui| {
+                        let mut volume = self.player.volume();
+                        let volume_slider =
+                            ui.add(Slider::new(&mut volume, 0..=100).show_value(false));
+                        if volume_slider.changed() {
+                            self.player.set_volume(volume);
+                        }
+
+                        ui.label(format!("{volume}%"));
                     });
                 });
             });
