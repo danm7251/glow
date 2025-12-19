@@ -1,8 +1,8 @@
 use eframe::{
     App as eframeApp, Frame as eframeFrame,
     egui::{
-        Button, CentralPanel, Context as eguiContext, Frame, Label, Layout, Margin, ProgressBar,
-        ScrollArea, Sense, SidePanel, Slider, TopBottomPanel,
+        CentralPanel, Context as eguiContext, Frame, Label, Margin, ProgressBar, ScrollArea, Sense,
+        SidePanel, Slider, TopBottomPanel,
     },
 };
 use native_dialog::{DialogBuilder, MessageLevel};
