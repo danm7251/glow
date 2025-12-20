@@ -1,13 +1,16 @@
 //! High-level control over audio playback.
 //!
 //! This module defines [`Player`], which manages playback state and volume,
-//! coordinating with the lower-level [`AudioEngine`] to perform audio output.
+//! coordinating with the lower-level [`AudioEngine`] to manage audio output.
 
 use std::time::Duration;
 
 use anyhow::Result;
 
-use crate::{audio::AudioEngine, library::Library};
+use crate::{
+    audio::{AudioBackend, AudioEngine},
+    library::Library,
+};
 
 /// Represents the current state of audio playback.
 ///
@@ -25,21 +28,33 @@ pub enum PlaybackState {
 /// The `Player` stores its own playback state and other playback details.
 /// It connects the UI and Audio layers.
 pub struct Player {
-    audio: AudioEngine,
+    audio: Box<dyn AudioBackend>, // REVIEW: Box vs Generics e.g Player<A: AudioBackend>
     state: PlaybackState,
+    // The volume should never change without user input so store here
+    // AudioEngine::set_volume does not fail so no need to check
     volume: u8,
 }
 
 impl Player {
+    // TODO: [URGENT] Update documentation
     /// Creates a new `Player`.
     ///
     /// The initial state is `Stopped` and the default volume is 100.
-    pub fn new() -> Self {
+    pub fn new(audio: Box<dyn AudioBackend>) -> Self {
         Self {
-            audio: AudioEngine::new().unwrap(), // TODO: [SOON] Handle no audio
+            audio,
             state: PlaybackState::Stopped,
             volume: 100,
         }
+    }
+
+    // TODO: [URGENT] Add documentation
+    pub fn with_audio_engine() -> Result<Self> {
+        Ok(Self {
+            audio: Box::new(AudioEngine::new()?), // TODO: [SOON] Handle AudioEngine Error
+            state: PlaybackState::Stopped,
+            volume: 100,
+        })
     }
 
     #[allow(dead_code)]

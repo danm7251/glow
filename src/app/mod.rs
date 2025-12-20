@@ -30,6 +30,12 @@ pub struct GlowApp {
 impl Default for GlowApp {
     fn default() -> Self {
         let mut error_queue = VecDeque::<anyhow::Error>::new();
+        let player = match Player::with_audio_engine() {
+            Ok(p) => p,
+            Err(e) => {
+                panic!("Failed to construct audio engine!\n{e}"); // TODO: [SOON] Replace panic
+            }
+        };
         let library = match Library::new(SONG_FOLDER, ALLOW_NON_MP3) {
             Ok(lib) => lib,
             Err(e) => {
@@ -40,7 +46,7 @@ impl Default for GlowApp {
 
         Self {
             library,
-            player: Player::new(),
+            player,
             error_queue,
             edit_window: None,
         }
@@ -68,6 +74,89 @@ impl GlowApp {
         self.ui_edit_window(ctx);
         self.process_errors();
         ctx.request_repaint_after(Duration::from_millis(100));
+    }
+
+    fn process_dropped_files(&mut self, ctx: &eguiContext) {
+        if !ctx.input(|i| i.raw.dropped_files.is_empty()) {
+            let dropped_files = ctx.input(|i| i.raw.dropped_files.clone());
+            for file in dropped_files {
+                #[allow(clippy::collapsible_if, reason = "Readability")]
+                if let Some(path) = file.path {
+                    if let Err(e) = self.library.import_from_path(path.as_path()) {
+                        self.error_queue.push_back(e);
+                    }
+                }
+            }
+        }
+    }
+
+    fn process_errors(&mut self) {
+        if let Some(error) = self.error_queue.pop_front() {
+            std::thread::spawn(move || {
+                let _ = DialogBuilder::message()
+                    .set_level(MessageLevel::Error)
+                    .set_title("Error!")
+                    .set_text(error.to_string())
+                    .alert()
+                    .show();
+            });
+        }
+    }
+
+    fn ui_tracklist(&mut self, ctx: &eguiContext) {
+        CentralPanel::default()
+            .frame(Frame::central_panel(&ctx.style()).inner_margin(Margin::same(STD_MARGIN)))
+            .show(ctx, |ui| {
+                ui.heading("Songs");
+                ui.separator();
+                ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
+                    // Reserves space for the scroll bar
+                    ui.set_max_width(ui.available_width() - ui.spacing().scroll.bar_width);
+
+                    if self.library.songs().is_empty() {
+                        ui.label("No songs found...");
+                    } else {
+                        // TODO: [LATER] Need some kind of intermediate Vector to represent 'views' into the Library. Consider that the Library showcases data and the new layer will encapsulate actions
+                        for song in self.library.songs() {
+                            ui.horizontal_wrapped(|ui| {
+                                // --- Labels ---
+                                let title_label =
+                                    ui.add(Label::new(song.title()).sense(Sense::click()));
+                                ui.label("by");
+                                let artist_label =
+                                    ui.add(Label::new(song.artist()).sense(Sense::click()));
+                                ui.label(song.formatted_duration());
+
+                                // --- Actions ---
+                                if title_label.clicked()
+                                    && let Err(e) = self.player.play(&self.library, song.id())
+                                {
+                                    self.error_queue.push_back(e.context("Playback Failed"));
+                                }
+                                if artist_label.clicked() {
+                                    // TODO: [LATER] Filter tracklist by artist
+                                }
+                                title_label.context_menu(|ui| {
+                                    if ui.button("Edit").clicked() {
+                                        self.edit_window = Some(EditWindow::new(song));
+                                    }
+                                });
+                            });
+                        }
+                    }
+                });
+            });
+    }
+
+    #[allow(clippy::unused_self)] // This will require &mut later
+    fn ui_playlist_panel(&mut self, ctx: &eguiContext) {
+        SidePanel::left("Playlists")
+            .frame(Frame::side_top_panel(&ctx.style()).inner_margin(Margin::same(STD_MARGIN)))
+            .show(ctx, |ui| {
+                ui.heading("Playlists");
+                ui.separator();
+                ui.label("All Songs");
+            });
     }
 
     fn ui_playback_bar(&mut self, ctx: &eguiContext) {
@@ -165,88 +254,6 @@ impl GlowApp {
                         });
                     });
                 });
-            });
-    }
-
-    fn process_dropped_files(&mut self, ctx: &eguiContext) {
-        if !ctx.input(|i| i.raw.dropped_files.is_empty()) {
-            let dropped_files = ctx.input(|i| i.raw.dropped_files.clone());
-            for file in dropped_files {
-                #[allow(clippy::collapsible_if, reason = "Readability")]
-                if let Some(path) = file.path {
-                    if let Err(e) = self.library.import_from_path(path.as_path()) {
-                        self.error_queue.push_back(e);
-                    }
-                }
-            }
-        }
-    }
-
-    fn process_errors(&mut self) {
-        if let Some(error) = self.error_queue.pop_front() {
-            std::thread::spawn(move || {
-                let _ = DialogBuilder::message()
-                    .set_level(MessageLevel::Error)
-                    .set_title("Error!")
-                    .set_text(error.to_string())
-                    .alert()
-                    .show();
-            });
-        }
-    }
-
-    fn ui_tracklist(&mut self, ctx: &eguiContext) {
-        CentralPanel::default()
-            .frame(Frame::central_panel(&ctx.style()).inner_margin(Margin::same(STD_MARGIN)))
-            .show(ctx, |ui| {
-                ui.heading("Songs");
-                ui.separator();
-                ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
-                    // Reserves space for the scroll bar
-                    ui.set_max_width(ui.available_width() - ui.spacing().scroll.bar_width);
-
-                    if self.library.songs().is_empty() {
-                        ui.label("No songs found...");
-                    } else {
-                        // TODO: [LATER] Need some kind of intermediate Vector to represent 'views' into the Library. Consider that the Library showcases data and the new layer will encapsulate actions
-                        for song in self.library.songs() {
-                            ui.horizontal_wrapped(|ui| {
-                                // --- Labels ---
-                                let title_label =
-                                    ui.add(Label::new(song.title()).sense(Sense::click()));
-                                ui.label("by");
-                                let artist_label =
-                                    ui.add(Label::new(song.artist()).sense(Sense::click()));
-                                ui.label(song.formatted_duration());
-
-                                // --- Actions ---
-                                if title_label.clicked()
-                                    && let Err(e) = self.player.play(&self.library, song.id())
-                                {
-                                    self.error_queue.push_back(e.context("Playback Failed"));
-                                }
-                                if artist_label.clicked() {
-                                    // TODO: [LATER] Filter tracklist by artist
-                                }
-                                title_label.context_menu(|ui| {
-                                    if ui.button("Edit").clicked() {
-                                        self.edit_window = Some(EditWindow::new(song));
-                                    }
-                                });
-                            });
-                        }
-                    }
-                });
-            });
-    }
-
-    #[allow(clippy::unused_self)] // This will require &mut later
-    fn ui_playlist_panel(&mut self, ctx: &eguiContext) {
-        SidePanel::left("Playlists")
-            .frame(Frame::side_top_panel(&ctx.style()).inner_margin(Margin::same(STD_MARGIN)))
-            .show(ctx, |ui| {
-                ui.heading("Playlists");
-                ui.separator();
             });
     }
 
