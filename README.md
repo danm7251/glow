@@ -7,7 +7,7 @@ A local audio player built using egui and eframe.
 - [x] Edit and save metadata
 - [x] Drag and drop support
 - [x] Volume Control
-- [ ] Seek bar
+- [x] Seek bar
 - [ ] Filter songs by Artist
 - [ ] Queuing
 - [ ] Skip/Back
