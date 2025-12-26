@@ -16,8 +16,6 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
       - name: Cache cargo registry
         uses: actions/cache@v4
         with:
