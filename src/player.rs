@@ -27,34 +27,38 @@ pub enum PlaybackState {
 ///
 /// The `Player` stores its own playback state and other playback details.
 /// It connects the UI and Audio layers.
-pub struct Player {
-    audio: Box<dyn AudioBackend>, // REVIEW: Box vs Generics e.g Player<A: AudioBackend>
+pub struct Player<A: AudioBackend> {
+    audio: A,
     state: PlaybackState,
     // The volume should never change without user input so store here
     // AudioEngine::set_volume does not fail so no need to check
     volume: u8,
 }
 
-impl Player {
+impl Player<AudioEngine> {
+    // TODO: [URGENT] Add documentation
+    pub fn with_audio_engine() -> Result<Self> {
+        let audio = AudioEngine::new()?;
+
+        Ok(Self {
+            audio,
+            state: PlaybackState::Stopped,
+            volume: 100,
+        })
+    }
+}
+
+impl<A: AudioBackend> Player<A> {
     // TODO: [URGENT] Update documentation
     /// Creates a new `Player`.
     ///
     /// The initial state is `Stopped` and the default volume is 100.
-    pub fn new(audio: Box<dyn AudioBackend>) -> Self {
+    pub fn new(audio: A) -> Self {
         Self {
             audio,
             state: PlaybackState::Stopped,
             volume: 100,
         }
-    }
-
-    // TODO: [URGENT] Add documentation
-    pub fn with_audio_engine() -> Result<Self> {
-        Ok(Self {
-            audio: Box::new(AudioEngine::new()?), // TODO: [SOON] Handle AudioEngine Error
-            state: PlaybackState::Stopped,
-            volume: 100,
-        })
     }
 
     #[allow(dead_code)]
@@ -178,16 +182,54 @@ mod tests {
     // TODO: [SOON] Automate tests with a commit hook and CI using github actions
     use super::*;
 
+    struct MockAudioEngine;
+
+    impl MockAudioEngine {
+        fn new() -> Self {
+            Self
+        }
+    }
+
+    impl AudioBackend for MockAudioEngine {
+        fn play_song(&mut self, path: &std::path::Path) -> Result<()> {
+            todo!()
+        }
+
+        fn pause(&mut self) {}
+
+        fn resume(&mut self) {}
+
+        fn stop(&mut self) {}
+
+        fn seek(&mut self, time: Duration) -> Result<()> {
+            todo!()
+        }
+
+        fn is_idle(&self) -> bool {
+            todo!()
+        }
+
+        fn time_elapsed(&self) -> Duration {
+            todo!()
+        }
+
+        fn set_volume(&self, value: u8) {
+            todo!()
+        }
+    }
+
     #[test]
     fn new_player_starts_stopped_with_full_volume() {
-        let player = Player::new();
+        let audio = MockAudioEngine;
+        let player = Player::new(audio);
         assert!(matches!(player.state(), PlaybackState::Stopped));
         assert_eq!(player.volume(), 100);
     }
 
     #[test]
     fn playback_states_rotate_with_id() {
-        let mut player = Player::new();
+        let audio = MockAudioEngine;
+        let mut player = Player::new(audio);
 
         // Player::play() is not used as it depends on Library
         // Consider using an AudioEngine trait to also apply to a MockAudioEngine in test

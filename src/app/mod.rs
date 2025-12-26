@@ -10,7 +10,7 @@ use std::{collections::VecDeque, time::Duration};
 
 pub mod edit_window;
 
-use crate::{app::edit_window::EditWindow, library::Library, player::Player};
+use crate::{app::edit_window::EditWindow, audio::AudioEngine, library::Library, player::Player};
 
 // Temporary hardcoded filepath, will be upgraded once permanent config is implemented
 const SONG_FOLDER: &str = "test";
@@ -22,7 +22,7 @@ const ALLOW_NON_MP3: bool = false;
 
 pub struct GlowApp {
     library: Library,
-    player: Player,
+    player: Player<AudioEngine>,
     error_queue: VecDeque<anyhow::Error>, // A VecDeque is used for FIFO action
     edit_window: Option<EditWindow>,
 }
