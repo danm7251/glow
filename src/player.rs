@@ -101,7 +101,7 @@ impl<A: AudioBackend> Player<A> {
     pub fn play(&mut self, library: &Library, id: usize) -> Result<()> {
         let path = library.get_song_path(id)?;
 
-        self.audio.play_song(path)?;
+        self.audio.play_song(path, id)?;
         self.state = PlaybackState::Playing { id };
 
         Ok(())
@@ -191,7 +191,7 @@ mod tests {
     }
 
     impl AudioBackend for MockAudioEngine {
-        fn play_song(&mut self, path: &std::path::Path) -> Result<()> {
+        fn play_song(&mut self, path: &std::path::Path, id: usize) -> Result<()> {
             todo!()
         }
 

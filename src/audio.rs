@@ -7,10 +7,64 @@
 //! is dropped, so it must live for the duration of playback. The [`Sink`] manages audio playback.
 
 use anyhow::{Context, Result, anyhow};
-use rodio::{Decoder, OutputStream, OutputStreamBuilder, Sink};
+use rodio::{Decoder, OutputStream, OutputStreamBuilder, Sink, Source, cpal::FromSample};
 use std::fs::File;
 use std::path::Path;
 use std::time::Duration;
+
+struct TrackIdDecorator<S> {
+    source: S,
+    id: usize,
+    has_started: bool,
+}
+
+impl<S> TrackIdDecorator<S> {
+    pub fn new(source: S, id: usize) -> Self {
+        Self {
+            source,
+            id,
+            has_started: false,
+        }
+    }
+}
+
+impl<S: Source> Iterator for TrackIdDecorator<S>
+where
+    S::Item: FromSample<S::Item>,
+{
+    type Item = S::Item;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if !self.has_started {
+            println!("Song ID: {}", self.id);
+            self.has_started = true;
+        }
+
+        self.source.next()
+    }
+}
+
+impl<S: Source> Source for TrackIdDecorator<S> {
+    fn current_span_len(&self) -> Option<usize> {
+        self.source.current_span_len()
+    }
+
+    fn channels(&self) -> rodio::ChannelCount {
+        self.source.channels()
+    }
+
+    fn sample_rate(&self) -> rodio::SampleRate {
+        self.source.sample_rate()
+    }
+
+    fn total_duration(&self) -> Option<Duration> {
+        self.source.total_duration()
+    }
+
+    fn try_seek(&mut self, pos: Duration) -> std::result::Result<(), rodio::source::SeekError> {
+        self.source.try_seek(pos)
+    }
+}
 
 // TODO: [SOON] Update documentation to reflect the difference in AudioBackend and Audioengines contracts.
 
@@ -21,7 +75,7 @@ pub trait AudioBackend {
     // Commands
 
     /// Start playback of the song at `path`, replacing any existing playback
-    fn play_song(&mut self, path: &Path) -> Result<()>;
+    fn play_song(&mut self, path: &Path, id: usize) -> Result<()>;
 
     /// Pause playback
     fn pause(&mut self);
@@ -65,9 +119,12 @@ impl AudioBackend for AudioEngine {
     ///
     /// Any existing playback is stopped and replaced.
     /// Returns an error if the file cannot be opened or decoded.
-    fn play_song(&mut self, path: &Path) -> Result<()> {
+    fn play_song(&mut self, path: &Path, id: usize) -> Result<()> {
         let file = File::open(path)?;
-        let source = Decoder::try_from(file)?;
+        let inner_source = Decoder::try_from(file)?;
+
+        //REFACTOR
+        let source = TrackIdDecorator::new(inner_source, id);
 
         self.sink.stop();
         self.sink.append(source);
