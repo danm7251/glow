@@ -3,7 +3,13 @@
 //! This module defines [`Player`], which manages playback state and volume,
 //! coordinating with the lower-level [`AudioEngine`] to manage audio output.
 
-use std::time::Duration;
+use std::{
+    sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering::SeqCst},
+    },
+    time::Duration,
+};
 
 use anyhow::Result;
 
@@ -11,6 +17,8 @@ use crate::{
     audio::{AudioBackend, AudioEngine},
     library::Library,
 };
+
+const NO_TRACK: usize = usize::MAX;
 
 /// Represents the current state of audio playback.
 ///
@@ -30,6 +38,7 @@ pub enum PlaybackState {
 pub struct Player<A: AudioBackend> {
     audio: A,
     state: PlaybackState,
+    id_sync: Arc<AtomicUsize>,
     // The volume should never change without user input so store here
     // AudioEngine::set_volume does not fail so no need to check
     volume: u8,
@@ -43,6 +52,7 @@ impl Player<AudioEngine> {
         Ok(Self {
             audio,
             state: PlaybackState::Stopped,
+            id_sync: Arc::new(AtomicUsize::new(NO_TRACK)),
             volume: 100,
         })
     }
@@ -57,6 +67,7 @@ impl<A: AudioBackend> Player<A> {
         Self {
             audio,
             state: PlaybackState::Stopped,
+            id_sync: Arc::new(AtomicUsize::new(NO_TRACK)),
             volume: 100,
         }
     }
@@ -101,7 +112,8 @@ impl<A: AudioBackend> Player<A> {
     pub fn play(&mut self, library: &Library, id: usize) -> Result<()> {
         let path = library.get_song_path(id)?;
 
-        self.audio.play_song(path, id)?;
+        self.audio.play_song(path, id, self.id_sync.clone())?;
+        // REVIEW: is this necessary?
         self.state = PlaybackState::Playing { id };
 
         Ok(())
@@ -145,8 +157,23 @@ impl<A: AudioBackend> Player<A> {
     ///
     /// Checks if the `AudioEngine` is idle and if it doesn't match `Player`'s internal state updates `Player`
     pub fn update(&mut self) {
-        if self.audio.is_idle() && self.state != PlaybackState::Stopped {
+        // This loop can take unexpected routes for one loop as it corrects state.
+        if self.audio.is_idle() {
+            debug_assert!(
+                self.state == PlaybackState::Stopped,
+                "Playback state was not stopped while AudioEngine was idle!"
+            );
             self.state = PlaybackState::Stopped;
+        } else {
+            let id = self.id_sync.load(SeqCst);
+
+            match self.state {
+                PlaybackState::Paused { .. } => self.state = PlaybackState::Paused { id },
+                PlaybackState::Playing { .. } => self.state = PlaybackState::Playing { id },
+                PlaybackState::Stopped => {
+                    println!("Check this");
+                }
+            }
         }
     }
 
@@ -191,7 +218,12 @@ mod tests {
     }
 
     impl AudioBackend for MockAudioEngine {
-        fn play_song(&mut self, path: &std::path::Path, id: usize) -> Result<()> {
+        fn play_song(
+            &mut self,
+            path: &std::path::Path,
+            id: usize,
+            id_sync: Arc<AtomicUsize>,
+        ) -> Result<()> {
             todo!()
         }
 

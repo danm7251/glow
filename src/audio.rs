@@ -10,19 +10,23 @@ use anyhow::{Context, Result, anyhow};
 use rodio::{Decoder, OutputStream, OutputStreamBuilder, Sink, Source, cpal::FromSample};
 use std::fs::File;
 use std::path::Path;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 use std::time::Duration;
 
 struct TrackIdDecorator<S> {
     source: S,
     id: usize,
+    id_sync: Arc<AtomicUsize>,
     has_started: bool,
 }
 
 impl<S> TrackIdDecorator<S> {
-    pub fn new(source: S, id: usize) -> Self {
+    pub fn new(source: S, id: usize, id_sync: Arc<AtomicUsize>) -> Self {
         Self {
             source,
             id,
+            id_sync,
             has_started: false,
         }
     }
@@ -34,9 +38,10 @@ where
 {
     type Item = S::Item;
 
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         if !self.has_started {
-            println!("Song ID: {}", self.id);
+            self.id_sync.store(self.id, SeqCst);
             self.has_started = true;
         }
 
@@ -45,22 +50,27 @@ where
 }
 
 impl<S: Source> Source for TrackIdDecorator<S> {
+    #[inline]
     fn current_span_len(&self) -> Option<usize> {
         self.source.current_span_len()
     }
 
+    #[inline]
     fn channels(&self) -> rodio::ChannelCount {
         self.source.channels()
     }
 
+    #[inline]
     fn sample_rate(&self) -> rodio::SampleRate {
         self.source.sample_rate()
     }
 
+    #[inline]
     fn total_duration(&self) -> Option<Duration> {
         self.source.total_duration()
     }
 
+    #[inline]
     fn try_seek(&mut self, pos: Duration) -> std::result::Result<(), rodio::source::SeekError> {
         self.source.try_seek(pos)
     }
@@ -75,7 +85,7 @@ pub trait AudioBackend {
     // Commands
 
     /// Start playback of the song at `path`, replacing any existing playback
-    fn play_song(&mut self, path: &Path, id: usize) -> Result<()>;
+    fn play_song(&mut self, path: &Path, id: usize, id_sync: Arc<AtomicUsize>) -> Result<()>;
 
     /// Pause playback
     fn pause(&mut self);
@@ -119,12 +129,12 @@ impl AudioBackend for AudioEngine {
     ///
     /// Any existing playback is stopped and replaced.
     /// Returns an error if the file cannot be opened or decoded.
-    fn play_song(&mut self, path: &Path, id: usize) -> Result<()> {
+    fn play_song(&mut self, path: &Path, id: usize, id_sync: Arc<AtomicUsize>) -> Result<()> {
         let file = File::open(path)?;
         let inner_source = Decoder::try_from(file)?;
 
         //REFACTOR
-        let source = TrackIdDecorator::new(inner_source, id);
+        let source = TrackIdDecorator::new(inner_source, id, id_sync);
 
         self.sink.stop();
         self.sink.append(source);
