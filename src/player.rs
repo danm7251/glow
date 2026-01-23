@@ -3,22 +3,13 @@
 //! This module defines [`Player`], which manages playback state and volume,
 //! coordinating with the lower-level [`AudioEngine`] to manage audio output.
 
-use std::{
-    sync::{
-        Arc,
-        atomic::{AtomicUsize, Ordering::SeqCst},
-    },
-    time::Duration,
-};
-
 use anyhow::Result;
+use std::time::Duration;
 
 use crate::{
     audio::{AudioBackend, AudioEngine},
     library::Library,
 };
-
-const NO_TRACK: usize = usize::MAX;
 
 /// Represents the current state of audio playback.
 ///
@@ -38,7 +29,6 @@ pub enum PlaybackState {
 pub struct Player<A: AudioBackend> {
     audio: A,
     state: PlaybackState,
-    id_sync: Arc<AtomicUsize>,
     // The volume should never change without user input so store here
     // AudioEngine::set_volume does not fail so no need to check
     volume: u8,
@@ -52,7 +42,6 @@ impl Player<AudioEngine> {
         Ok(Self {
             audio,
             state: PlaybackState::Stopped,
-            id_sync: Arc::new(AtomicUsize::new(NO_TRACK)),
             volume: 100,
         })
     }
@@ -67,7 +56,6 @@ impl<A: AudioBackend> Player<A> {
         Self {
             audio,
             state: PlaybackState::Stopped,
-            id_sync: Arc::new(AtomicUsize::new(NO_TRACK)),
             volume: 100,
         }
     }
@@ -112,7 +100,7 @@ impl<A: AudioBackend> Player<A> {
     pub fn play(&mut self, library: &Library, id: usize) -> Result<()> {
         let path = library.get_song_path(id)?;
 
-        self.audio.play_song(path, id, self.id_sync.clone())?;
+        self.audio.play_song(path, id)?;
         // REVIEW: is this necessary?
         self.state = PlaybackState::Playing { id };
 
@@ -165,7 +153,7 @@ impl<A: AudioBackend> Player<A> {
             );
             self.state = PlaybackState::Stopped;
         } else {
-            let id = self.id_sync.load(SeqCst);
+            let id = self.audio.active_playback_id();
 
             match self.state {
                 PlaybackState::Paused { .. } => self.state = PlaybackState::Paused { id },
@@ -218,12 +206,7 @@ mod tests {
     }
 
     impl AudioBackend for MockAudioEngine {
-        fn play_song(
-            &mut self,
-            path: &std::path::Path,
-            id: usize,
-            id_sync: Arc<AtomicUsize>,
-        ) -> Result<()> {
+        fn play_song(&mut self, path: &std::path::Path, id: usize) -> Result<()> {
             todo!()
         }
 
@@ -237,15 +220,19 @@ mod tests {
             todo!()
         }
 
+        fn set_volume(&self, value: u8) {
+            todo!()
+        }
+
         fn is_idle(&self) -> bool {
             todo!()
         }
 
-        fn time_elapsed(&self) -> Duration {
+        fn active_playback_id(&self) -> usize {
             todo!()
         }
 
-        fn set_volume(&self, value: u8) {
+        fn time_elapsed(&self) -> Duration {
             todo!()
         }
     }
