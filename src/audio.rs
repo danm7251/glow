@@ -13,7 +13,8 @@ use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 use std::time::Duration;
-use std::usize;
+
+const NO_TRACK: usize = usize::MAX;
 
 // TODO: [SOON] Update documentation to reflect the difference in AudioBackend and Audioengines contracts.
 
@@ -75,7 +76,7 @@ impl AudioBackend for AudioEngine {
     fn play_song(&mut self, path: &Path, id: usize) -> Result<()> {
         let file = File::open(path)?;
         let inner_source = Decoder::try_from(file)?;
-        let source = TrackIdDecorator::new(inner_source, id, self.active_playback_id.clone());
+        let source = SourceTracker::new(inner_source, id, self.active_playback_id.clone());
 
         self.sink.stop();
         self.sink.append(source);
@@ -163,19 +164,19 @@ impl AudioEngine {
         Ok(Self {
             _stream: stream,
             sink,
-            active_playback_id: Arc::new(AtomicUsize::new(usize::MAX)),
+            active_playback_id: Arc::new(AtomicUsize::new(NO_TRACK)),
         })
     }
 }
 
-struct TrackIdDecorator<S> {
+struct SourceTracker<S> {
     source: S,
     id: usize,
     id_sync: Arc<AtomicUsize>,
     has_started: bool,
 }
 
-impl<S> TrackIdDecorator<S> {
+impl<S> SourceTracker<S> {
     pub fn new(source: S, id: usize, id_sync: Arc<AtomicUsize>) -> Self {
         Self {
             source,
@@ -186,7 +187,7 @@ impl<S> TrackIdDecorator<S> {
     }
 }
 
-impl<S: Source> Iterator for TrackIdDecorator<S>
+impl<S: Source> Iterator for SourceTracker<S>
 where
     S::Item: FromSample<S::Item>,
 {
@@ -203,7 +204,7 @@ where
     }
 }
 
-impl<S: Source> Source for TrackIdDecorator<S> {
+impl<S: Source> Source for SourceTracker<S> {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
         self.source.current_span_len()
