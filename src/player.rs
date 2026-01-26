@@ -5,7 +5,7 @@
 
 use anyhow::Result;
 use std::time::Duration;
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 
 use crate::{
     audio::{AudioBackend, AudioEngine},
@@ -75,7 +75,7 @@ impl<A: AudioBackend> Player<A> {
     }
 
     /// Returns the ID of the current song, if it exists.
-    pub fn current_id(&self) -> Option<usize> {
+    pub fn active_id(&self) -> Option<usize> {
         match self.state {
             PlaybackState::Playing { id } | PlaybackState::Paused { id } => Some(id),
             PlaybackState::Stopped => None,
@@ -131,6 +131,7 @@ impl<A: AudioBackend> Player<A> {
     pub fn stop(&mut self) {
         if self.state != PlaybackState::Stopped {
             self.audio.stop();
+            self.state = PlaybackState::Stopped;
         }
     }
 
@@ -195,42 +196,61 @@ impl<A: AudioBackend> Player<A> {
 
 #[cfg(test)]
 mod tests {
-    // TODO: [SOON] Automate tests with a commit hook and CI using github actions
     use super::*;
 
-    struct MockAudioEngine;
+    struct MockAudioEngine {
+        is_paused: bool,
+        sink_empty: bool,
+        active_id: usize,
+    }
+
+    const NO_TRACK: usize = usize::MAX;
 
     impl MockAudioEngine {
         fn new() -> Self {
-            Self
+            Self {
+                is_paused: false,
+                sink_empty: true,
+                active_id: NO_TRACK,
+            }
         }
     }
 
     impl AudioBackend for MockAudioEngine {
-        fn play_song(&mut self, path: &std::path::Path, id: usize) -> Result<()> {
+        fn play_song(&mut self, _path: &std::path::Path, id: usize) -> Result<()> {
+            self.is_paused = false;
+            self.sink_empty = false;
+            self.active_id = id;
+            Ok(())
+        }
+
+        fn pause(&mut self) {
+            self.is_paused = true;
+        }
+
+        fn resume(&mut self) {
+            self.is_paused = false;
+        }
+
+        fn stop(&mut self) {
+            self.sink_empty = true;
+            self.active_id = NO_TRACK;
+        }
+
+        fn seek(&mut self, _time: Duration) -> Result<()> {
             todo!()
         }
 
-        fn pause(&mut self) {}
-
-        fn resume(&mut self) {}
-
-        fn stop(&mut self) {}
-
-        fn seek(&mut self, time: Duration) -> Result<()> {
-            todo!()
-        }
-
-        fn set_volume(&self, value: u8) {
+        fn set_volume(&self, _value: u8) {
             todo!()
         }
 
         fn is_idle(&self) -> bool {
-            todo!()
+            self.sink_empty
         }
 
         fn active_id(&self) -> usize {
-            todo!()
+            self.active_id
         }
 
         fn time_elapsed(&self) -> Duration {
@@ -239,30 +259,60 @@ mod tests {
     }
 
     #[test]
-    fn new_player_starts_stopped_with_full_volume() {
-        let audio = MockAudioEngine;
+    fn new_player_starts_stopped() {
+        let audio = MockAudioEngine::new();
         let player = Player::new(audio);
-        assert!(matches!(player.state(), PlaybackState::Stopped));
+        assert_eq!(player.state(), PlaybackState::Stopped);
+        assert_eq!(player.active_id(), None);
+        assert!(!player.is_playing());
+    }
+
+    #[test]
+    fn new_player_has_full_volume() {
+        let audio = MockAudioEngine::new();
+        let player = Player::new(audio);
         assert_eq!(player.volume(), 100);
     }
 
     #[test]
-    fn playback_states_rotate_with_id() {
-        let audio = MockAudioEngine;
+    fn pause_and_resume_maintains_id() {
+        let audio = MockAudioEngine::new();
         let mut player = Player::new(audio);
 
-        // Player::play() is not used as it depends on Library
-        // Consider using an AudioEngine trait to also apply to a MockAudioEngine in test
-        player.state = PlaybackState::Playing { id: 7 };
-        assert!(matches!(player.state(), PlaybackState::Playing { id: 7 }));
+        player.state = PlaybackState::Playing { id: 42 };
 
         player.pause();
-        assert!(matches!(player.state(), PlaybackState::Paused { id: 7 }));
+        assert_eq!(player.state(), PlaybackState::Paused { id: 42 });
+        assert_eq!(player.active_id(), Some(42));
+        assert!(!player.is_playing());
 
         player.resume();
-        assert!(matches!(player.state(), PlaybackState::Playing { id: 7 }));
+        assert_eq!(player.state(), PlaybackState::Playing { id: 42 });
+        assert_eq!(player.active_id(), Some(42));
+        assert!(player.is_playing());
+    }
+
+    #[test]
+    fn stop_from_playing_state() {
+        let audio = MockAudioEngine::new();
+        let mut player = Player::new(audio);
+
+        player.state = PlaybackState::Playing { id: 99 };
 
         player.stop();
-        assert!(matches!(player.state(), PlaybackState::Stopped));
+        assert_eq!(player.state(), PlaybackState::Stopped);
+        assert_eq!(player.active_id(), None);
+    }
+
+    #[test]
+    fn stop_from_paused_state() {
+        let audio = MockAudioEngine::new();
+        let mut player = Player::new(audio);
+
+        player.state = PlaybackState::Paused { id: 71 };
+
+        player.stop();
+        assert_eq!(player.state(), PlaybackState::Stopped);
+        assert_eq!(player.active_id(), None);
     }
 }
