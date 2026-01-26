@@ -5,6 +5,7 @@
 
 use anyhow::Result;
 use std::time::Duration;
+use tracing::{error, info, warn};
 
 use crate::{
     audio::{AudioBackend, AudioEngine},
@@ -52,6 +53,7 @@ impl<A: AudioBackend> Player<A> {
     /// Creates a new `Player`.
     ///
     /// The initial state is `Stopped` and the default volume is 100.
+    #[allow(unused)]
     pub fn new(audio: A) -> Self {
         Self {
             audio,
@@ -99,37 +101,29 @@ impl<A: AudioBackend> Player<A> {
     /// Finally it sets the playback state to `Playing`.
     pub fn play(&mut self, library: &Library, id: usize) -> Result<()> {
         let path = library.get_song_path(id)?;
-
         self.audio.play_song(path, id)?;
-        // REVIEW: is this necessary?
-        self.state = PlaybackState::Playing { id };
-
         Ok(())
     }
 
     /// Resumes the sink and sets the playback state.
     pub fn resume(&mut self) {
-        debug_assert!(
-            matches!(self.state, PlaybackState::Paused { .. }),
-            "Player::resume() called while state was not paused"
-        );
-
         if let PlaybackState::Paused { id } = self.state {
             self.audio.resume();
             self.state = PlaybackState::Playing { id };
+            info!("Player state was resumed");
+        } else {
+            warn!("Resume was called while playing or stopped");
         }
     }
 
     /// Pauses the sink and sets the playback state.
     pub fn pause(&mut self) {
-        debug_assert!(
-            matches!(self.state, PlaybackState::Playing { .. }),
-            "Player::pause() called while state was not playing"
-        );
-
         if let PlaybackState::Playing { id } = self.state {
             self.audio.pause();
             self.state = PlaybackState::Paused { id };
+            info!("Player state was paused");
+        } else {
+            warn!("Pause was called while paused or stopped");
         }
     }
 
@@ -137,7 +131,6 @@ impl<A: AudioBackend> Player<A> {
     pub fn stop(&mut self) {
         if self.state != PlaybackState::Stopped {
             self.audio.stop();
-            self.state = PlaybackState::Stopped;
         }
     }
 
@@ -145,21 +138,32 @@ impl<A: AudioBackend> Player<A> {
     ///
     /// Checks if the `AudioEngine` is idle and if it doesn't match `Player`'s internal state updates `Player`
     pub fn update(&mut self) {
-        // This loop can take unexpected routes for one loop as it corrects state.
         if self.audio.is_idle() {
-            debug_assert!(
-                self.state == PlaybackState::Stopped,
-                "Playback state was not stopped while AudioEngine was idle!"
-            );
-            self.state = PlaybackState::Stopped;
+            if self.state != PlaybackState::Stopped {
+                self.state = PlaybackState::Stopped;
+                info!("Player state was set to Stopped");
+            }
         } else {
-            let id = self.audio.active_playback_id();
+            let active_id = self.audio.active_id();
 
             match self.state {
-                PlaybackState::Paused { .. } => self.state = PlaybackState::Paused { id },
-                PlaybackState::Playing { .. } => self.state = PlaybackState::Playing { id },
+                PlaybackState::Playing { id } if id != active_id => {
+                    self.state = PlaybackState::Playing { id: active_id };
+                    info!("Player state ID changed to active ID");
+                }
+                PlaybackState::Paused { id } if id != active_id => {
+                    self.state = PlaybackState::Paused { id: active_id };
+                    info!("Player state ID = {id} changed to active ID = {active_id}");
+                    warn!("ID changed while Player state was paused");
+                }
                 PlaybackState::Stopped => {
-                    println!("Check this");
+                    // This happens when starting a song while stopped.
+                    self.state = PlaybackState::Playing { id: active_id };
+                    info!("Player state was set to Playing with ID {active_id}");
+                }
+
+                _ => {
+                    // ID matches no state update needed.
                 }
             }
         }
@@ -176,14 +180,11 @@ impl<A: AudioBackend> Player<A> {
 
     /// Attempts to set the time position of the song.
     pub fn set_position(&mut self, value: f64) -> Result<()> {
+        tracing::info!("Attempting seek");
         let seeking_is_allowed = !matches!(self.state, PlaybackState::Stopped);
 
-        debug_assert!(
-            seeking_is_allowed,
-            "Player::set_position() called while state was stopped"
-        );
-
         if !seeking_is_allowed {
+            tracing::warn!("Seek attempted while Player was stopped");
             return Ok(());
         }
 
@@ -228,7 +229,7 @@ mod tests {
             todo!()
         }
 
-        fn active_playback_id(&self) -> usize {
+        fn active_id(&self) -> usize {
             todo!()
         }
 

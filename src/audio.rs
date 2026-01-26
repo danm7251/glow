@@ -51,7 +51,7 @@ pub trait AudioBackend {
     fn is_idle(&self) -> bool;
 
     /// Returns the ID of the last activated track.
-    fn active_playback_id(&self) -> usize;
+    fn active_id(&self) -> usize;
 
     /// Returns the elapsed playback time since the start of the current track.
     fn time_elapsed(&self) -> Duration;
@@ -65,7 +65,7 @@ pub trait AudioBackend {
 pub struct AudioEngine {
     _stream: OutputStream,
     sink: Sink,
-    active_playback_id: Arc<AtomicUsize>,
+    active_id: Arc<AtomicUsize>,
 }
 
 impl AudioBackend for AudioEngine {
@@ -77,7 +77,7 @@ impl AudioBackend for AudioEngine {
     fn play_song(&mut self, path: &Path, id: usize) -> Result<()> {
         let file = File::open(path)?;
         let inner_source = Decoder::try_from(file)?;
-        let source = SourceTracker::new(inner_source, id, self.active_playback_id.clone());
+        let source = SourceTracker::new(inner_source, id, self.active_id.clone());
 
         self.sink.stop();
         self.sink.append(source);
@@ -131,8 +131,8 @@ impl AudioBackend for AudioEngine {
     }
 
     /// Returns the ID of the most recently active audio track
-    fn active_playback_id(&self) -> usize {
-        self.active_playback_id.load(SeqCst)
+    fn active_id(&self) -> usize {
+        self.active_id.load(SeqCst)
     }
 
     /// Returns a boolean indicating whether the sink has finished playing.
@@ -165,7 +165,7 @@ impl AudioEngine {
         Ok(Self {
             _stream: stream,
             sink,
-            active_playback_id: Arc::new(AtomicUsize::new(usize::MAX)),
+            active_id: Arc::new(AtomicUsize::new(NO_TRACK)),
         })
     }
 }
@@ -187,7 +187,9 @@ impl<S> SourceTracker<S> {
             id,
             id_sync,
             has_started: false,
-            span: tracing::info_span!("Source Playback", id = id),
+
+            // Logging
+            span: tracing::info_span!("Source", id = id),
         }
     }
 }
@@ -204,7 +206,7 @@ where
         let _guard = self.span.enter();
 
         if !self.has_started {
-            tracing::info!("Audio thread: Starting playback");
+            tracing::info!("Starting playback");
             self.id_sync.store(self.id, SeqCst);
             self.has_started = true;
         }
@@ -227,14 +229,10 @@ impl<S> Drop for SourceTracker<S> {
             .compare_exchange(self.id, NO_TRACK, SeqCst, SeqCst)
         {
             Ok(id) => {
-                tracing::info!(
-                    "Audio thread: Dropping source, active ID was {id}, setting to NO_TRACK"
-                );
+                tracing::info!("Dropping source, active ID was {id}, setting to NO_TRACK");
             }
             Err(id) => {
-                tracing::warn!(
-                    "Audio thread Dropping source, active ID was {id}, failed to set NO_TRACK"
-                );
+                tracing::warn!("Dropping source, active ID was {id}, failed to set NO_TRACK");
             }
         }
     }
