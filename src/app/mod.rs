@@ -7,7 +7,7 @@ use eframe::{
 };
 use native_dialog::{DialogBuilder, MessageLevel};
 use std::{collections::VecDeque, time::Duration};
-
+use tracing::error;
 pub mod edit_window;
 
 use crate::{app::edit_window::EditWindow, audio::AudioEngine, library::Library, player::Player};
@@ -92,6 +92,8 @@ impl GlowApp {
 
     fn process_errors(&mut self) {
         if let Some(error) = self.error_queue.pop_front() {
+            error!("{error}");
+
             std::thread::spawn(move || {
                 let _ = DialogBuilder::message()
                     .set_level(MessageLevel::Error)
@@ -167,7 +169,7 @@ impl GlowApp {
                     // 1st Section: Playback Buttons
                     // TODO: [SOON] Force all buttons to be equal size
                     ui.vertical(|ui| {
-                        ui.add_enabled_ui(self.player.current_id().is_some(), |ui| {
+                        ui.add_enabled_ui(self.player.active_id().is_some(), |ui| {
                             let playing = self.player.is_playing();
 
                             ui.horizontal(|ui| {
@@ -198,7 +200,7 @@ impl GlowApp {
                     // 2nd Section: Playback info and seek bar
                     // TODO: Consider cases: No audio loaded, audio has no duration
                     ui.vertical(|ui| {
-                        if let Some(id) = self.player.current_id()
+                        if let Some(id) = self.player.active_id()
                             && let Some(song) = self.library.get_song(id)
                         {
                             ui.horizontal(|ui| {
@@ -233,11 +235,11 @@ impl GlowApp {
                     // 3rd Section: Volume
                     ui.vertical(|ui| {
                         ui.horizontal(|ui| {
-                            if ui.button("Settings").clicked() {
-                                // TODO: [LATER] Add functionality
+                            if ui.button("Log Active ID").clicked() {
+                                tracing::info!("Active ID = {:?}", self.player.active_id());
                             }
-                            if ui.button("Edit").clicked() {
-                                // TODO: [LATER] Add functionality
+                            if ui.button("Log State").clicked() {
+                                tracing::info!("Player state = {:?}", self.player.state());
                             }
                         });
 
