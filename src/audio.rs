@@ -13,7 +13,9 @@ use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 use std::time::Duration;
-use std::usize;
+use tracing::Span;
+
+const NO_TRACK: usize = usize::MAX;
 
 // TODO: [SOON] Update documentation to reflect the difference in AudioBackend and Audioengines contracts.
 
@@ -75,7 +77,7 @@ impl AudioBackend for AudioEngine {
     fn play_song(&mut self, path: &Path, id: usize) -> Result<()> {
         let file = File::open(path)?;
         let inner_source = Decoder::try_from(file)?;
-        let source = TrackIdDecorator::new(inner_source, id, self.active_playback_id.clone());
+        let source = SourceTracker::new(inner_source, id, self.active_playback_id.clone());
 
         self.sink.stop();
         self.sink.append(source);
@@ -168,25 +170,29 @@ impl AudioEngine {
     }
 }
 
-struct TrackIdDecorator<S> {
+struct SourceTracker<S> {
     source: S,
     id: usize,
     id_sync: Arc<AtomicUsize>,
     has_started: bool,
+
+    // Logging
+    span: Span,
 }
 
-impl<S> TrackIdDecorator<S> {
+impl<S> SourceTracker<S> {
     pub fn new(source: S, id: usize, id_sync: Arc<AtomicUsize>) -> Self {
         Self {
             source,
             id,
             id_sync,
             has_started: false,
+            span: tracing::info_span!("Source Playback", id = id),
         }
     }
 }
 
-impl<S: Source> Iterator for TrackIdDecorator<S>
+impl<S: Source> Iterator for SourceTracker<S>
 where
     S::Item: FromSample<S::Item>,
 {
@@ -194,7 +200,11 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
+        // Logging
+        let _guard = self.span.enter();
+
         if !self.has_started {
+            tracing::info!("Audio thread: Starting playback");
             self.id_sync.store(self.id, SeqCst);
             self.has_started = true;
         }
@@ -203,7 +213,35 @@ where
     }
 }
 
-impl<S: Source> Source for TrackIdDecorator<S> {
+impl<S> Drop for SourceTracker<S> {
+    // Don't inline this as the compiler already aggressively optimises drop().
+    fn drop(&mut self) {
+        // Logging
+        let _guard = self.span.enter();
+
+        // This match statement replaces the id_sync field with NO_TRACK if the id_sync equals the source ID.
+        // If they are not equal that is unexpected. It indicates that the next source has already started
+        // before the current one is dropped and NO_TRACK is not necessary.
+        match self
+            .id_sync
+            .compare_exchange(self.id, NO_TRACK, SeqCst, SeqCst)
+        {
+            Ok(id) => {
+                tracing::info!(
+                    "Audio thread: Dropping source, active ID was {id}, setting to NO_TRACK"
+                );
+            }
+            Err(id) => {
+                tracing::warn!(
+                    "Audio thread Dropping source, active ID was {id}, failed to set NO_TRACK"
+                );
+            }
+        }
+    }
+}
+
+// Required implementations for the Source trait
+impl<S: Source> Source for SourceTracker<S> {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
         self.source.current_span_len()

@@ -9,3 +9,5 @@ rodio = "0.21.1"
 native-dialog = "0.9.2"
 id3 = "1.16.3"
 anyhow = "1.0"
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.22", features = ["env-filter"]}
