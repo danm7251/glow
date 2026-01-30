@@ -15,7 +15,7 @@ use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 use std::time::Duration;
 use tracing::Span;
 
-const NO_TRACK: usize = usize::MAX;
+pub const NO_TRACK: usize = usize::MAX;
 
 // TODO: [SOON] Update documentation to reflect the difference in AudioBackend and Audioengines contracts.
 
@@ -48,7 +48,10 @@ pub trait AudioBackend {
     // State queries
 
     /// Returns true if no audio is currently queued or playing.
-    fn is_idle(&self) -> bool;
+    fn is_empty(&self) -> bool;
+
+    /// Returns true if playback is paused.
+    fn is_paused(&self) -> bool;
 
     /// Returns the ID of the last activated track.
     fn active_id(&self) -> usize;
@@ -130,14 +133,19 @@ impl AudioBackend for AudioEngine {
         self.sink.set_volume(normed_value);
     }
 
+    /// Returns a boolean indicating whether the sink has finished playing.
+    fn is_empty(&self) -> bool {
+        self.sink.empty()
+    }
+
+    /// Returns a boolean indicating whether the sink is paused.
+    fn is_paused(&self) -> bool {
+        self.sink.is_paused()
+    }
+
     /// Returns the ID of the most recently active audio track
     fn active_id(&self) -> usize {
         self.active_id.load(SeqCst)
-    }
-
-    /// Returns a boolean indicating whether the sink has finished playing.
-    fn is_idle(&self) -> bool {
-        self.sink.empty()
     }
 
     /// Returns the current playback position of the sink.

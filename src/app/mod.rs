@@ -59,7 +59,6 @@ impl eframeApp for GlowApp {
         ctx.set_debug_on_hover(true);
 
         // TODO: [SOON] Consider how the main loop can facilitate clean communication between modules
-        self.player.update();
         self.render_ui(ctx);
     }
 }
@@ -239,7 +238,7 @@ impl GlowApp {
                                 tracing::info!("Active ID = {:?}", self.player.active_id());
                             }
                             if ui.button("Log State").clicked() {
-                                tracing::info!("Player state = {:?}", self.player.state());
+                                tracing::info!("This button doesn't do anything right now.");
                             }
                         });
 
