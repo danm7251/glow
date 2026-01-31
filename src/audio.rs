@@ -13,8 +13,9 @@ use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 use std::time::Duration;
+use tracing::Span;
 
-const NO_TRACK: usize = usize::MAX;
+pub const NO_TRACK: usize = usize::MAX;
 
 // TODO: [SOON] Update documentation to reflect the difference in AudioBackend and Audioengines contracts.
 
@@ -47,10 +48,13 @@ pub trait AudioBackend {
     // State queries
 
     /// Returns true if no audio is currently queued or playing.
-    fn is_idle(&self) -> bool;
+    fn is_empty(&self) -> bool;
+
+    /// Returns true if playback is paused.
+    fn is_paused(&self) -> bool;
 
     /// Returns the ID of the last activated track.
-    fn active_playback_id(&self) -> usize;
+    fn active_id(&self) -> usize;
 
     /// Returns the elapsed playback time since the start of the current track.
     fn time_elapsed(&self) -> Duration;
@@ -64,7 +68,7 @@ pub trait AudioBackend {
 pub struct AudioEngine {
     _stream: OutputStream,
     sink: Sink,
-    active_playback_id: Arc<AtomicUsize>,
+    active_id: Arc<AtomicUsize>,
 }
 
 impl AudioBackend for AudioEngine {
@@ -76,7 +80,7 @@ impl AudioBackend for AudioEngine {
     fn play_song(&mut self, path: &Path, id: usize) -> Result<()> {
         let file = File::open(path)?;
         let inner_source = Decoder::try_from(file)?;
-        let source = SourceTracker::new(inner_source, id, self.active_playback_id.clone());
+        let source = SourceTracker::new(inner_source, id, self.active_id.clone());
 
         self.sink.stop();
         self.sink.append(source);
@@ -129,14 +133,19 @@ impl AudioBackend for AudioEngine {
         self.sink.set_volume(normed_value);
     }
 
-    /// Returns the ID of the most recently active audio track
-    fn active_playback_id(&self) -> usize {
-        self.active_playback_id.load(SeqCst)
+    /// Returns a boolean indicating whether the sink has finished playing.
+    fn is_empty(&self) -> bool {
+        self.sink.empty()
     }
 
-    /// Returns a boolean indicating whether the sink has finished playing.
-    fn is_idle(&self) -> bool {
-        self.sink.empty()
+    /// Returns a boolean indicating whether the sink is paused.
+    fn is_paused(&self) -> bool {
+        self.sink.is_paused()
+    }
+
+    /// Returns the ID of the most recently active audio track
+    fn active_id(&self) -> usize {
+        self.active_id.load(SeqCst)
     }
 
     /// Returns the current playback position of the sink.
@@ -164,7 +173,7 @@ impl AudioEngine {
         Ok(Self {
             _stream: stream,
             sink,
-            active_playback_id: Arc::new(AtomicUsize::new(NO_TRACK)),
+            active_id: Arc::new(AtomicUsize::new(NO_TRACK)),
         })
     }
 }
@@ -174,6 +183,9 @@ struct SourceTracker<S> {
     id: usize,
     id_sync: Arc<AtomicUsize>,
     has_started: bool,
+
+    // Logging
+    span: Span,
 }
 
 impl<S> SourceTracker<S> {
@@ -183,6 +195,9 @@ impl<S> SourceTracker<S> {
             id,
             id_sync,
             has_started: false,
+
+            // Logging
+            span: tracing::info_span!("Source", id = id),
         }
     }
 }
@@ -195,7 +210,11 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
+        // Logging
+        let _guard = self.span.enter();
+
         if !self.has_started {
+            tracing::info!("Starting playback");
             self.id_sync.store(self.id, SeqCst);
             self.has_started = true;
         }
@@ -204,6 +223,30 @@ where
     }
 }
 
+impl<S> Drop for SourceTracker<S> {
+    // Don't inline this as the compiler already aggressively optimises drop().
+    fn drop(&mut self) {
+        // Logging
+        let _guard = self.span.enter();
+
+        // This match statement replaces the id_sync field with NO_TRACK if the id_sync equals the source ID.
+        // If they are not equal that is unexpected. It indicates that the next source has already started
+        // before the current one is dropped and NO_TRACK is not necessary.
+        match self
+            .id_sync
+            .compare_exchange(self.id, NO_TRACK, SeqCst, SeqCst)
+        {
+            Ok(id) => {
+                tracing::info!("Dropping source, active ID was {id}, setting to NO_TRACK");
+            }
+            Err(id) => {
+                tracing::warn!("Dropping source, active ID was {id}, failed to set NO_TRACK");
+            }
+        }
+    }
+}
+
+// Required implementations for the Source trait
 impl<S: Source> Source for SourceTracker<S> {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {

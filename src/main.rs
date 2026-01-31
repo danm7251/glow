@@ -13,6 +13,8 @@ use eframe::{
 };
 
 fn main() -> eframeResult {
+    setup_tracing();
+
     let native_options = eframeNativeOptions::default();
 
     eframe_run_native(
@@ -20,4 +22,14 @@ fn main() -> eframeResult {
         native_options,
         Box::new(|_cc| Ok(Box::new(app::GlowApp::default()))),
     )
+}
+
+fn setup_tracing() {
+    tracing_subscriber::fmt()
+        .with_env_filter("glow=debug")
+        .with_thread_names(true)
+        .pretty()
+        .init();
+
+    tracing::info!("Tracing initialised...");
 }
