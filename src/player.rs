@@ -25,6 +25,8 @@ pub struct Player<A: AudioBackend> {
 impl Player<AudioEngine> {
     // TODO: [URGENT] Add documentation
     pub fn with_audio_engine() -> Result<Self> {
+        tracing::info!("Creating new Player with AudioEngine");
+
         let audio = AudioEngine::new()?;
 
         // TODO: Derive volume from audio?
@@ -74,6 +76,8 @@ impl<A: AudioBackend> Player<A> {
     /// Tries getting the file path and playing the song.
     /// Finally it sets the playback state to `Playing`.
     pub fn play(&mut self, library: &Library, id: usize) -> Result<()> {
+        tracing::info!("Attempting to play song={id} immediately.");
+
         let path = library.get_song_path(id)?;
         self.audio.play_song(path, id)?;
         Ok(())
@@ -81,22 +85,39 @@ impl<A: AudioBackend> Player<A> {
 
     /// Resumes the sink and sets the playback state.
     pub fn resume(&mut self) {
+        self.audio.resume();
+
+        // Observability
         if self.audio.is_paused() {
-            self.audio.resume();
+            tracing::info!("Resuming audio playback.");
+        } else {
+            tracing::warn!("Attempted resume() while audio was already playing.");
         }
     }
 
     /// Pauses the sink and sets the playback state.
     pub fn pause(&mut self) {
+        self.audio.pause();
+
+        // Observability
+        #[allow(clippy::if_not_else, reason = "Else clause may be temporary.")]
         if !self.audio.is_paused() {
-            self.audio.pause();
+            tracing::info!("Pausing audio playback.");
+        } else {
+            tracing::warn!("Attempted pause() while audio was already paused.");
         }
     }
 
     /// Stops the sink and sets the playback state.
     pub fn stop(&mut self) {
+        self.audio.stop();
+
+        // Observability
+        #[allow(clippy::if_not_else, reason = "Else clause may be temporary.")]
         if !self.audio.is_empty() {
-            self.audio.stop();
+            tracing::info!("Stopping audio playback.");
+        } else {
+            tracing::warn!("Attempted stop() while audio was already stopped.");
         }
     }
 
@@ -104,6 +125,8 @@ impl<A: AudioBackend> Player<A> {
     ///
     /// The provided value is stored internally and passed to `AudioEngine`.
     pub fn set_volume(&mut self, value: u8) {
+        tracing::info!("Setting volume to {value}.");
+
         let clamped = value.min(100);
         self.volume = clamped;
         self.audio.set_volume(clamped);
@@ -111,12 +134,15 @@ impl<A: AudioBackend> Player<A> {
 
     /// Attempts to set the time position of the song.
     pub fn set_position(&mut self, value: f64) -> Result<()> {
+        // REVIEW: Active ID might be a more effective guard.
         if !self.audio.is_empty() {
+            tracing::info!("Attempting seek to {value}.");
+
             let time = Duration::from_secs_f64(value);
             return self.audio.seek(time);
         }
 
-        tracing::warn!("Invalid operation.");
+        tracing::warn!("Attempted seek while audio was stopped.");
 
         Ok(())
     }
@@ -132,14 +158,12 @@ mod tests {
         active_id: usize,
     }
 
-    const NO_TRACK: usize = usize::MAX;
-
     impl MockAudioEngine {
         fn new() -> Self {
             Self {
                 is_paused: false,
                 sink_empty: true,
-                active_id: NO_TRACK,
+                active_id: audio::NO_TRACK,
             }
         }
     }
@@ -162,7 +186,7 @@ mod tests {
 
         fn stop(&mut self) {
             self.sink_empty = true;
-            self.active_id = NO_TRACK;
+            self.active_id = audio::NO_TRACK;
         }
 
         fn seek(&mut self, _time: Duration) -> Result<()> {
