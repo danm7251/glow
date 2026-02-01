@@ -10,41 +10,61 @@ use std::{collections::VecDeque, time::Duration};
 use tracing::error;
 pub mod edit_window;
 
-use crate::{app::edit_window::EditWindow, audio::AudioEngine, library::Library, player::Player};
+use crate::{
+    app::edit_window::EditWindow, audio::AudioEngine, config::Config, library::Library,
+    player::Player,
+};
 
-// Temporary hardcoded filepath, will be upgraded once permanent config is implemented
-const SONG_FOLDER: &str = "test";
 // Visual settings
-const STD_MARGIN: i8 = 10;
-const CONTROL_MARGIN: i8 = 5;
-// Test flags
-const ALLOW_NON_MP3: bool = false;
+struct Visuals {
+    standard_margin: i8,
+    control_margin: i8,
+}
+
+impl Visuals {
+    pub fn dev_preset() -> Self {
+        Self {
+            standard_margin: 10,
+            control_margin: 5,
+        }
+    }
+}
 
 pub struct GlowApp {
+    _config: Config,
+    visuals: Visuals,
+
     library: Library,
     player: Player<AudioEngine>,
+
     error_queue: VecDeque<anyhow::Error>, // A VecDeque is used for FIFO action
+
     edit_window: Option<EditWindow>,
 }
 
 impl Default for GlowApp {
     fn default() -> Self {
         let mut error_queue = VecDeque::<anyhow::Error>::new();
+
+        let config = Config::dev_preset();
+
         let player = match Player::with_audio_engine() {
             Ok(p) => p,
             Err(e) => {
                 panic!("Failed to construct audio engine!\n{e}"); // TODO: [SOON] Replace panic
             }
         };
-        let library = match Library::new(SONG_FOLDER, ALLOW_NON_MP3) {
+        let library = match Library::new(config.folder(), config.allow_non_mp3()) {
             Ok(lib) => lib,
             Err(e) => {
                 error_queue.push_back(e);
-                Library::empty(SONG_FOLDER, ALLOW_NON_MP3)
+                Library::empty(config.folder(), config.allow_non_mp3())
             }
         };
 
         Self {
+            _config: config,
+            visuals: Visuals::dev_preset(),
             library,
             player,
             error_queue,
@@ -106,7 +126,10 @@ impl GlowApp {
 
     fn ui_tracklist(&mut self, ctx: &eguiContext) {
         CentralPanel::default()
-            .frame(Frame::central_panel(&ctx.style()).inner_margin(Margin::same(STD_MARGIN)))
+            .frame(
+                Frame::central_panel(&ctx.style())
+                    .inner_margin(Margin::same(self.visuals.standard_margin)),
+            )
             .show(ctx, |ui| {
                 ui.heading("Songs");
                 ui.separator();
@@ -152,7 +175,10 @@ impl GlowApp {
     #[allow(clippy::unused_self)] // This will require &mut later
     fn ui_playlist_panel(&mut self, ctx: &eguiContext) {
         SidePanel::left("Playlists")
-            .frame(Frame::side_top_panel(&ctx.style()).inner_margin(Margin::same(STD_MARGIN)))
+            .frame(
+                Frame::side_top_panel(&ctx.style())
+                    .inner_margin(Margin::same(self.visuals.standard_margin)),
+            )
             .show(ctx, |ui| {
                 ui.heading("Playlists");
                 ui.separator();
@@ -162,7 +188,10 @@ impl GlowApp {
 
     fn ui_playback_bar(&mut self, ctx: &eguiContext) {
         TopBottomPanel::bottom("Playback Bar")
-            .frame(Frame::side_top_panel(&ctx.style()).inner_margin(Margin::same(CONTROL_MARGIN)))
+            .frame(
+                Frame::side_top_panel(&ctx.style())
+                    .inner_margin(Margin::same(self.visuals.control_margin)),
+            )
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
                     // 1st Section: Playback Buttons
