@@ -12,7 +12,7 @@ pub mod edit_window;
 
 use crate::{
     app::edit_window::EditWindow, audio::AudioEngine, config::Config, library::Library,
-    player::Player,
+    player::Player, queue::Queue,
 };
 
 // Visual settings
@@ -34,6 +34,7 @@ pub struct GlowApp {
     _config: Config,
     visuals: Visuals,
 
+    queue: Queue,
     library: Library,
     player: Player<AudioEngine>,
 
@@ -65,6 +66,7 @@ impl Default for GlowApp {
         Self {
             _config: config,
             visuals: Visuals::dev_preset(),
+            queue: Queue::new(),
             library,
             player,
             error_queue,
@@ -163,6 +165,8 @@ impl GlowApp {
                                 title_label.context_menu(|ui| {
                                     if ui.button("Edit").clicked() {
                                         self.edit_window = Some(EditWindow::new(song));
+                                    } else if ui.button("Add to queue").clicked() {
+                                        self.queue.add(song.id());
                                     }
                                 });
                             });

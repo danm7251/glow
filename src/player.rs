@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use crate::{
     audio::{self, AudioBackend, AudioEngine},
-    library::Library,
+    library::{self, Library},
 };
 
 /// Controls audio playback state.
@@ -121,6 +121,14 @@ impl<A: AudioBackend> Player<A> {
         }
     }
 
+    pub fn queue(&mut self, library: &Library, id: usize) -> Result<()> {
+        tracing::info!("Attempting to play song={id} immediately.");
+
+        let path = library.get_song_path(id)?;
+        self.audio.play_song(path, id)?;
+        Ok(())
+    }
+
     /// Sets the playback volume to `value` (0-100).
     ///
     /// The provided value is stored internally and passed to `AudioEngine`.
@@ -187,6 +195,10 @@ mod tests {
         fn stop(&mut self) {
             self.sink_empty = true;
             self.active_id = audio::NO_TRACK;
+        }
+
+        fn queue(&mut self, _path: &std::path::Path, _id: usize) -> Result<()> {
+            todo!()
         }
 
         fn seek(&mut self, _time: Duration) -> Result<()> {

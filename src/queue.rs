@@ -22,10 +22,6 @@ impl Queue {
         self.upcoming.push(id);
     }
 
-    pub fn add_as_next(&mut self, id: usize) {
-        self.upcoming.insert(0, id);
-    }
-
     pub fn next(&mut self) -> Option<usize> {
         self.upcoming.pop()
     }

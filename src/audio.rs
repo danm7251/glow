@@ -37,6 +37,8 @@ pub trait AudioBackend {
     /// Stop playback and clear any queued audio
     fn stop(&mut self);
 
+    fn queue(&mut self, path: &Path, id: usize) -> Result<()>;
+
     /// Skip to a position in the current track
     fn seek(&mut self, time: Duration) -> Result<()>;
 
@@ -105,6 +107,20 @@ impl AudioBackend for AudioEngine {
     /// Stops playback on the sink and clears any queued audio.
     fn stop(&mut self) {
         self.sink.stop();
+    }
+
+    fn queue(&mut self, path: &Path, id: usize) -> Result<()> {
+        let file = File::open(path)?;
+        let inner_source = Decoder::try_from(file)?;
+        let source = SourceTracker::new(inner_source, id, self.active_id.clone());
+
+        self.sink.append(source);
+
+        if self.sink.is_paused() {
+            self.sink.play();
+        }
+
+        Ok(())
     }
 
     /// Seeks audio at `time`
