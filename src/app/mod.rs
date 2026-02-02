@@ -11,7 +11,7 @@ use tracing::error;
 pub mod edit_window;
 
 use crate::{
-    app::edit_window::EditWindow, audio::AudioEngine, config::Config, library::Library,
+    app::edit_window::EditWindow, audio::AudioEngine, config::Config, core::Core, library::Library,
     player::Player,
 };
 
@@ -31,43 +31,18 @@ impl Visuals {
 }
 
 pub struct GlowApp {
-    _config: Config,
     visuals: Visuals,
 
-    library: Library,
-    player: Player<AudioEngine>,
-
-    error_queue: VecDeque<anyhow::Error>, // A VecDeque is used for FIFO action
+    core: Core,
 
     edit_window: Option<EditWindow>,
 }
 
 impl Default for GlowApp {
     fn default() -> Self {
-        let mut error_queue = VecDeque::<anyhow::Error>::new();
-
-        let config = Config::dev_preset();
-
-        let player = match Player::with_audio_engine() {
-            Ok(p) => p,
-            Err(e) => {
-                panic!("Failed to construct audio engine!\n{e}"); // TODO: [SOON] Replace panic
-            }
-        };
-        let library = match Library::new(config.folder(), config.allow_non_mp3()) {
-            Ok(lib) => lib,
-            Err(e) => {
-                error_queue.push_back(e);
-                Library::empty(config.folder(), config.allow_non_mp3())
-            }
-        };
-
         Self {
-            _config: config,
             visuals: Visuals::dev_preset(),
-            library,
-            player,
-            error_queue,
+            core: Core::new(),
             edit_window: None,
         }
     }
@@ -152,10 +127,8 @@ impl GlowApp {
                                 ui.label(song.formatted_duration());
 
                                 // --- Actions ---
-                                if title_label.clicked()
-                                    && let Err(e) = self.player.play(&self.library, song.id())
-                                {
-                                    self.error_queue.push_back(e.context("Playback Failed"));
+                                if title_label.clicked() {
+                                    self.core.play(song.id());
                                 }
                                 if artist_label.clicked() {
                                     // TODO: [LATER] Filter tracklist by artist
@@ -238,7 +211,7 @@ impl GlowApp {
                                 ui.label(song.formatted_duration());
                             });
 
-                            match (song.duration(), self.player.position()) {
+                            match (song.duration(), self.core.position()) {
                                 (Some(duration), Some(mut position)) => {
                                     let total_duration = duration.as_secs_f64();
 
@@ -247,10 +220,8 @@ impl GlowApp {
                                             .show_value(false),
                                     );
 
-                                    if seek_bar.drag_stopped()
-                                        && let Err(e) = self.player.set_position(position)
-                                    {
-                                        self.error_queue.push_back(e);
+                                    if seek_bar.drag_stopped() {
+                                        self.core.seek(position);
                                     }
                                 }
                                 _ => {
